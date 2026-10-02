@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  Truck, Car, Users, BookOpen, Wrench, FileText,
+  Car, Users, BookOpen, Wrench, FileText,
   AlertTriangle, BarChart3, Shield, Wifi, ArrowRight,
 } from 'lucide-react';
 
@@ -56,7 +56,8 @@ export default function LandingPage() {
       <nav className="pm-landing-nav">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div className="pm-sidebar-brand-icon">
-            <Truck size={20} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="ProMove Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
           </div>
           <span className="pm-sidebar-brand-name">ProMove</span>
         </div>
@@ -254,8 +255,9 @@ export default function LandingPage() {
           flexWrap: 'wrap',
           gap: 'var(--pm-space-4)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Truck size={18} style={{ color: 'var(--pm-blue-600)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="ProMove Logo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
             <span style={{ fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>ProMove</span>
           </div>
           <div style={{

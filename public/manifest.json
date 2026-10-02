@@ -1,0 +1,31 @@
+{
+  "name": "ProMove Fleet Management",
+  "short_name": "ProMove",
+  "description": "Digital fleet management and driver shift portal for Ghana.",
+  "start_url": "/driver-app",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#0B4F6C",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo-icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"]
+}

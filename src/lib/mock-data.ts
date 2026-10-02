@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// ProMove Mock Data — Realistic Ghana fleet data
+// ProMove Mock Data: Realistic Ghana fleet data
 // All money in pesewas (100 pesewas = GH₵ 1)
 // ─────────────────────────────────────────────
 
@@ -89,6 +89,46 @@ export const mockOrgMembers: OrgMember[] = [
 
 export const mockVehicles: Vehicle[] = [
   {
+    id: 'veh-ge3797', org_id: 'org-001', plate_number: 'GE 3797-20',
+    make: 'Toyota', model: 'HiAce Commuter', year: 2021, vehicle_type: 'trotro',
+    colour: 'White/Blue', vin: 'JT7614092817200', seats: 15, fuel_type: 'diesel',
+    status: 'active', odometer_km: 98400,
+    daily_target_pesewas: 38000, gps_device_id: '864201049281700',
+    archived_at: null, created_at: '2025-02-10T08:00:00Z',
+  },
+  {
+    id: 'veh-1', org_id: 'org-001', plate_number: 'GR 4521-22',
+    make: 'Nissan', model: 'Urvan', year: 2020, vehicle_type: 'trotro',
+    colour: 'Yellow/White', vin: 'JN120938491823', seats: 15, fuel_type: 'diesel',
+    status: 'active', odometer_km: 112000,
+    daily_target_pesewas: 35000, gps_device_id: '864201049281723',
+    archived_at: null, created_at: '2025-03-01T09:00:00Z',
+  },
+  {
+    id: 'veh-2', org_id: 'org-001', plate_number: 'GT 1892-23',
+    make: 'Hyundai', model: 'H350 High Roof', year: 2022, vehicle_type: 'trotro',
+    colour: 'Blue', vin: 'KM829384019284', seats: 18, fuel_type: 'diesel',
+    status: 'active', odometer_km: 84000,
+    daily_target_pesewas: 42000, gps_device_id: '864201049281724',
+    archived_at: null, created_at: '2025-03-05T10:00:00Z',
+  },
+  {
+    id: 'veh-3', org_id: 'org-001', plate_number: 'GE 6721-21',
+    make: 'Toyota', model: 'Corolla Sedan', year: 2021, vehicle_type: 'taxi',
+    colour: 'Orange/Yellow', vin: 'JT392810492812', seats: 4, fuel_type: 'petrol',
+    status: 'active', odometer_km: 145000,
+    daily_target_pesewas: 28000, gps_device_id: '864201049281725',
+    archived_at: null, created_at: '2025-03-10T08:30:00Z',
+  },
+  {
+    id: 'veh-4', org_id: 'org-001', plate_number: 'GW 3312-22',
+    make: 'Mercedes-Benz', model: 'Sprinter 314', year: 2020, vehicle_type: 'bus',
+    colour: 'White', vin: 'WD839201948271', seats: 22, fuel_type: 'diesel',
+    status: 'active', odometer_km: 167500,
+    daily_target_pesewas: 52000, gps_device_id: '864201049281726',
+    archived_at: null, created_at: '2025-03-12T07:45:00Z',
+  },
+  {
     id: 'veh-001', org_id: 'org-001', plate_number: 'GR 2345-22',
     make: 'Toyota', model: 'HiAce', year: 2019, vehicle_type: 'trotro',
     colour: 'White', vin: null, seats: 15, fuel_type: 'diesel',
@@ -158,6 +198,38 @@ export const mockVehicles: Vehicle[] = [
 
 export const mockDrivers: Driver[] = [
   {
+    id: 'drv-kweku', org_id: 'org-001', user_id: null,
+    full_name: 'Kweku Addo', phone: '+233244111222',
+    role_type: 'driver', licence_number_enc: null,
+    licence_class: 'C', licence_expiry: '2027-08-20',
+    status: 'active', emergency_contact: '+233244999000',
+    archived_at: null,
+  },
+  {
+    id: 'drv-kwame', org_id: 'org-001', user_id: null,
+    full_name: 'Kwame Mensah', phone: '+233244222333',
+    role_type: 'driver', licence_number_enc: null,
+    licence_class: 'C', licence_expiry: '2027-04-12',
+    status: 'active', emergency_contact: '+233244999111',
+    archived_at: null,
+  },
+  {
+    id: 'drv-kofi', org_id: 'org-001', user_id: null,
+    full_name: 'Kofi Owusu', phone: '+233244333444',
+    role_type: 'driver', licence_number_enc: null,
+    licence_class: 'C', licence_expiry: '2026-11-30',
+    status: 'active', emergency_contact: '+233244999222',
+    archived_at: null,
+  },
+  {
+    id: 'drv-emmanuel', org_id: 'org-001', user_id: null,
+    full_name: 'Emmanuel Osei', phone: '+233244444555',
+    role_type: 'driver', licence_number_enc: null,
+    licence_class: 'B', licence_expiry: '2027-02-18',
+    status: 'active', emergency_contact: '+233244999333',
+    archived_at: null,
+  },
+  {
     id: 'drv-001', org_id: 'org-001', user_id: 'user-003',
     full_name: 'Kwame Asante', phone: '+233244345678',
     role_type: 'driver', licence_number_enc: null,
@@ -211,52 +283,80 @@ export const mockDrivers: Driver[] = [
 
 export const mockAssignments: VehicleAssignment[] = [
   {
+    id: 'asgn-ge3797', org_id: 'org-001', vehicle_id: 'veh-ge3797', driver_id: 'drv-kweku',
+    starts_at: '2026-01-10T06:00:00Z', ends_at: null,
+    commission_type: 'percent', commission_value: 25,
+    daily_sales_target_pesewas: 38000,
+    vehicle: mockVehicles.find(v => v.id === 'veh-ge3797')!,
+    driver: mockDrivers.find(d => d.id === 'drv-kweku')!,
+  },
+  {
+    id: 'asgn-veh-1', org_id: 'org-001', vehicle_id: 'veh-1', driver_id: 'drv-kwame',
+    starts_at: '2026-01-15T06:00:00Z', ends_at: null,
+    commission_type: 'percent', commission_value: 30,
+    daily_sales_target_pesewas: 35000,
+    vehicle: mockVehicles.find(v => v.id === 'veh-1')!,
+    driver: mockDrivers.find(d => d.id === 'drv-kwame')!,
+  },
+  {
+    id: 'asgn-veh-2', org_id: 'org-001', vehicle_id: 'veh-2', driver_id: 'drv-kofi',
+    starts_at: '2026-02-01T06:00:00Z', ends_at: null,
+    commission_type: 'percent', commission_value: 25,
+    daily_sales_target_pesewas: 42000,
+    vehicle: mockVehicles.find(v => v.id === 'veh-2')!,
+    driver: mockDrivers.find(d => d.id === 'drv-kofi')!,
+  },
+  {
+    id: 'asgn-veh-3', org_id: 'org-001', vehicle_id: 'veh-3', driver_id: 'drv-emmanuel',
+    starts_at: '2026-02-15T06:00:00Z', ends_at: null,
+    commission_type: 'fixed', commission_value: 5000,
+    daily_sales_target_pesewas: 28000,
+    vehicle: mockVehicles.find(v => v.id === 'veh-3')!,
+    driver: mockDrivers.find(d => d.id === 'drv-emmanuel')!,
+  },
+  {
     id: 'asgn-001', org_id: 'org-001', vehicle_id: 'veh-001', driver_id: 'drv-001',
     starts_at: '2026-01-15T06:00:00Z', ends_at: null,
     commission_type: 'percent', commission_value: 30,
     daily_sales_target_pesewas: 35000,
-    vehicle: mockVehicles[0], driver: mockDrivers[0],
+    vehicle: mockVehicles.find(v => v.id === 'veh-001')!,
+    driver: mockDrivers.find(d => d.id === 'drv-001')!,
   },
   {
     id: 'asgn-002', org_id: 'org-001', vehicle_id: 'veh-002', driver_id: 'drv-002',
     starts_at: '2026-02-01T06:00:00Z', ends_at: null,
     commission_type: 'percent', commission_value: 25,
     daily_sales_target_pesewas: 40000,
-    vehicle: mockVehicles[1], driver: mockDrivers[1],
+    vehicle: mockVehicles.find(v => v.id === 'veh-002')!,
+    driver: mockDrivers.find(d => d.id === 'drv-002')!,
   },
   {
     id: 'asgn-003', org_id: 'org-001', vehicle_id: 'veh-004', driver_id: 'drv-003',
     starts_at: '2026-03-01T06:00:00Z', ends_at: null,
     commission_type: 'fixed', commission_value: 5000,
     daily_sales_target_pesewas: 25000,
-    vehicle: mockVehicles[3], driver: mockDrivers[2],
-  },
-  {
-    id: 'asgn-004', org_id: 'org-001', vehicle_id: 'veh-006', driver_id: 'drv-005',
-    starts_at: '2026-04-01T06:00:00Z', ends_at: null,
-    commission_type: 'percent', commission_value: 20,
-    daily_sales_target_pesewas: 45000,
-    vehicle: mockVehicles[5], driver: mockDrivers[4],
-  },
-  {
-    id: 'asgn-005', org_id: 'org-001', vehicle_id: 'veh-007', driver_id: 'drv-005',
-    starts_at: '2026-05-01T06:00:00Z', ends_at: '2026-08-31T18:00:00Z',
-    commission_type: 'percent', commission_value: 25,
-    daily_sales_target_pesewas: 30000,
-    vehicle: mockVehicles[6], driver: mockDrivers[4],
+    vehicle: mockVehicles.find(v => v.id === 'veh-004')!,
+    driver: mockDrivers.find(d => d.id === 'drv-003')!,
   },
 ];
 
-// Link vehicles to drivers
-mockVehicles[0].current_driver = mockDrivers[0];
-mockVehicles[1].current_driver = mockDrivers[1];
-mockVehicles[3].current_driver = mockDrivers[2];
-mockVehicles[5].current_driver = mockDrivers[4];
-
-mockDrivers[0].current_vehicle = mockVehicles[0];
-mockDrivers[1].current_vehicle = mockVehicles[1];
-mockDrivers[2].current_vehicle = mockVehicles[3];
-mockDrivers[4].current_vehicle = mockVehicles[5];
+// Link vehicles to drivers by ID
+const linkVehicleAndDriver = (vehicleId: string, driverId: string) => {
+  const v = mockVehicles.find(x => x.id === vehicleId);
+  const d = mockDrivers.find(x => x.id === driverId);
+  if (v && d) {
+    v.current_driver = d;
+    d.current_vehicle = v;
+  }
+};
+linkVehicleAndDriver('veh-ge3797', 'drv-kweku');
+linkVehicleAndDriver('veh-1', 'drv-kwame');
+linkVehicleAndDriver('veh-2', 'drv-kofi');
+linkVehicleAndDriver('veh-3', 'drv-emmanuel');
+linkVehicleAndDriver('veh-001', 'drv-001');
+linkVehicleAndDriver('veh-002', 'drv-002');
+linkVehicleAndDriver('veh-004', 'drv-003');
+linkVehicleAndDriver('veh-006', 'drv-005');
 
 // ── Ledger Entries ────────────────────────────
 

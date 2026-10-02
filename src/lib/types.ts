@@ -1,11 +1,11 @@
 // ─────────────────────────────────────────────
-// ProMove Types — Matches the data model exactly
+// ProMove Types: Matches the data model exactly
 // Money: integer pesewas (bigint in DB, number in TS)
 // IDs: UUID strings
 // ─────────────────────────────────────────────
 
 export type OrgStatus = 'active' | 'suspended';
-export type Role = 'owner' | 'manager' | 'driver' | 'viewer';
+export type Role = 'owner' | 'manager' | 'driver' | 'viewer' | 'platform_admin';
 export type VehicleType = 'trotro' | 'taxi' | 'bus' | 'truck' | 'pickup' | 'other';
 export type VehicleStatus = 'active' | 'idle' | 'maintenance' | 'unavailable';
 export type FuelType = 'petrol' | 'diesel' | 'lpg' | 'electric';
@@ -91,6 +91,10 @@ export interface Driver {
   licence_expiry: string | null;
   status: DriverStatus;
   emergency_contact: string | null;
+  sms_consent_given?: boolean;
+  sms_consent_at?: string | null;
+  location_consent_given?: boolean;
+  location_consent_at?: string | null;
   archived_at: string | null;
   // Joined data
   current_vehicle?: Vehicle;
@@ -300,4 +304,23 @@ export function formatPesewasShort(pesewas: number): string {
 
 export function statusLabel(status: string): string {
   return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+export function canPerform(
+  action: 'manage_team' | 'record_ledger' | 'void_ledger' | 'delete_record' | 'edit_vehicle' | 'export_reports',
+  role: Role
+): boolean {
+  switch (role) {
+    case 'owner':
+    case 'platform_admin':
+      return true;
+    case 'manager':
+      return action !== 'manage_team' && action !== 'delete_record';
+    case 'driver':
+      return action === 'record_ledger';
+    case 'viewer':
+      return action === 'export_reports';
+    default:
+      return false;
+  }
 }

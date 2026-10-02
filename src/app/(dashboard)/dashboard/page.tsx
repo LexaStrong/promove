@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Car, Users, TrendingUp, TrendingDown, AlertTriangle,
@@ -14,11 +14,18 @@ import {
 } from '@/lib/mock-data';
 
 export default function DashboardPage() {
+  const [todayLabel, setTodayLabel] = useState('Today');
   const stats = mockFleetStats;
   const recentEntries = mockLedgerEntries.slice(0, 5);
   const activeIncidents = mockIncidents.filter(i => i.status !== 'resolved');
   const expiringDocs = mockDocuments.filter(d => (d.days_until_expiry ?? 999) <= 30);
   const unreadNotifs = mockNotifications.filter(n => n.status !== 'read');
+
+  useEffect(() => {
+    setTodayLabel(new Date().toLocaleDateString('en-GH', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    }));
+  }, []);
 
   return (
     <div>
@@ -26,11 +33,7 @@ export default function DashboardPage() {
       <div className="pm-page-header">
         <div>
           <h1 className="pm-page-title">Dashboard</h1>
-          <p className="pm-page-subtitle">
-            Fleet overview for {new Date().toLocaleDateString('en-GH', {
-              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-            })}
-          </p>
+          <p className="pm-page-subtitle">Fleet overview for {todayLabel}</p>
         </div>
       </div>
 
@@ -168,7 +171,7 @@ export default function DashboardPage() {
                 <FileText size={16} style={{ color: 'var(--pm-warning)', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', fontWeight: 500 }} className="pm-truncate">
-                    {doc.vehicle?.plate_number} — {doc.doc_type} expires
+                    {doc.vehicle?.plate_number} • {doc.doc_type} expires
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
                     {doc.days_until_expiry} days remaining
@@ -189,7 +192,7 @@ export default function DashboardPage() {
                 <AlertTriangle size={16} style={{ color: 'var(--pm-error)', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '0.8125rem', fontWeight: 500 }} className="pm-truncate">
-                    {inc.vehicle?.plate_number} — {inc.incident_type}
+                    {inc.vehicle?.plate_number} • {inc.incident_type}
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
                     {inc.location_text}
@@ -252,7 +255,7 @@ export default function DashboardPage() {
               {recentEntries.map(entry => (
                 <tr key={entry.id}>
                   <td style={{ fontWeight: 500 }}>{entry.vehicle?.plate_number}</td>
-                  <td>{entry.driver?.full_name || '—'}</td>
+                  <td>{entry.driver?.full_name || '-'}</td>
                   <td>
                     <span className={`pm-badge pm-badge-${entry.entry_type}`}>
                       {entry.entry_type === 'income' ? (

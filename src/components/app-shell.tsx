@@ -7,9 +7,10 @@ import {
   LayoutDashboard, Car, Users, BookOpen, Fuel,
   Wrench, FileText, AlertTriangle, Map, BarChart3,
   Settings, Bell, Menu, X, Search, LogOut, ChevronDown,
-  Truck,
+  ShieldAlert, Smartphone, Navigation, Sparkles,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { Role } from '@/lib/types';
 
 const navSections = [
   {
@@ -24,6 +25,7 @@ const navSections = [
       { href: '/vehicles', label: 'Vehicles', icon: Car },
       { href: '/drivers', label: 'Drivers', icon: Users },
       { href: '/trips', label: 'Trips', icon: Map },
+      { href: '/live-map', label: 'Live GPS Map', icon: Navigation },
     ],
   },
   {
@@ -45,27 +47,35 @@ const navSections = [
     title: 'Insights',
     items: [
       { href: '/reports', label: 'Reports', icon: BarChart3 },
+      { href: '/intelligence', label: 'Fleet Intelligence', icon: Sparkles },
     ],
   },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, org, logout } = useAuth();
+  const { user, org, role, switchRole, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
   const initials = user?.full_name
     ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'PM';
+  const activeNavItem = navSections
+    .flatMap(section => section.items)
+    .find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
+  const mobilePageTitle = activeNavItem?.label
+    ?? pathname.split('/').filter(Boolean).at(-1)?.replace(/-/g, ' ')
+    ?? 'Dashboard';
 
   return (
     <div>
       {/* Sidebar */}
-      <aside className={`pm-sidebar ${sidebarOpen ? 'open' : ''}`}>
+      <aside id="primary-navigation" className={`pm-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="pm-sidebar-brand">
           <div className="pm-sidebar-brand-icon">
-            <Truck size={20} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="ProMove Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
           </div>
           <span className="pm-sidebar-brand-name">ProMove</span>
         </div>
@@ -92,7 +102,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
 
-        <div className="pm-sidebar-footer">
+        <div className="pm-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Link
+            href="/privacy"
+            className={`pm-sidebar-link ${pathname === '/privacy' ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <ShieldAlert size={18} />
+            Privacy (Act 843)
+          </Link>
           <Link
             href="/settings"
             className={`pm-sidebar-link ${pathname === '/settings' ? 'active' : ''}`}
@@ -106,11 +124,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Overlay for mobile sidebar */}
       {sidebarOpen && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)',
-            zIndex: 35, cursor: 'pointer',
-          }}
+        <button
+          type="button"
+          className="pm-sidebar-overlay"
+          aria-label="Close navigation menu"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -122,9 +139,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             className="pm-hamburger"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label="Toggle menu"
+            aria-controls="primary-navigation"
+            aria-expanded={sidebarOpen}
           >
             {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
+
+          <span className="pm-mobile-page-title">{mobilePageTitle}</span>
 
           <div style={{ position: 'relative' }}>
             <Search
@@ -151,7 +172,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           <div style={{ position: 'relative' }}>
             <button
+              type="button"
+              className="pm-profile-trigger"
               onClick={() => setProfileOpen(!profileOpen)}
+              aria-expanded={profileOpen}
+              aria-haspopup="menu"
               style={{
                 display: 'flex', alignItems: 'center', gap: '8px',
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -159,10 +184,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               }}
             >
               <div className="pm-topbar-avatar">{initials}</div>
-              <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                  {user?.full_name}
-                </span>
+              <div className="pm-profile-details" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
+                    {user?.full_name}
+                  </span>
+                  <span className="pm-badge pm-badge-info" style={{ textTransform: 'capitalize', fontSize: '0.625rem', padding: '1px 6px' }}>
+                    {role.replace('_', ' ')}
+                  </span>
+                </div>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--pm-text-muted)' }}>
                   {org?.name}
                 </span>
@@ -176,13 +206,60 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   position: 'absolute', top: '100%', right: 0, marginTop: 8,
                   background: 'var(--pm-surface)', border: '1px solid var(--pm-border)',
                   borderRadius: 'var(--pm-radius-lg)', boxShadow: 'var(--pm-shadow-lg)',
-                  minWidth: 200, zIndex: 50, overflow: 'hidden',
+                  minWidth: 220, zIndex: 50, overflow: 'hidden',
                 }}
               >
                 <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--pm-border)' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{user?.full_name}</div>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user?.full_name}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>{user?.phone}</div>
+                  <div style={{ marginTop: 4 }}>
+                    <span className="pm-badge pm-badge-active" style={{ fontSize: '0.6875rem', textTransform: 'uppercase' }}>
+                      Role: {role.replace('_', ' ')}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Switch Role demo menu */}
+                <div style={{ padding: '8px 12px', background: 'var(--pm-bg-subtle)', borderBottom: '1px solid var(--pm-border)' }}>
+                  <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--pm-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                    Switch Role (Demo)
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+                    {(['owner', 'manager', 'driver', 'viewer', 'platform_admin'] as Role[]).map(r => (
+                      <button
+                        key={r}
+                        onClick={() => { switchRole(r); setProfileOpen(false); }}
+                        style={{
+                          textAlign: 'left',
+                          fontSize: '0.75rem',
+                          padding: '4px 8px',
+                          borderRadius: 'var(--pm-radius-sm)',
+                          border: 'none',
+                          background: role === r ? 'var(--pm-blue-100)' : 'transparent',
+                          color: role === r ? 'var(--pm-blue-700)' : 'var(--pm-text)',
+                          fontWeight: role === r ? 600 : 400,
+                          cursor: 'pointer',
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {r.replace('_', ' ')}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Link
+                  href="/driver-app"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '10px 16px', fontSize: '0.875rem', color: 'var(--pm-blue-600)',
+                    fontWeight: 500,
+                  }}
+                  onClick={() => setProfileOpen(false)}
+                >
+                  <Smartphone size={16} /> Driver PWA View
+                </Link>
+
                 <Link
                   href="/settings"
                   style={{
@@ -193,6 +270,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Settings size={16} /> Settings
                 </Link>
+
                 <button
                   onClick={() => { setProfileOpen(false); logout(); }}
                   style={{
