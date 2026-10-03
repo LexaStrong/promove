@@ -1,8 +1,10 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import {
   Car, Users, BookOpen, Wrench, FileText,
-  AlertTriangle, BarChart3, Shield, Wifi, ArrowRight,
+  BarChart3, Shield, Wifi, ArrowRight,
 } from 'lucide-react';
+import { siteUrl } from '@/lib/site';
 
 const features = [
   {
@@ -46,6 +48,25 @@ const features = [
     desc: 'Strict tenant isolation, TOTP two-factor login, encrypted licence numbers, and a full audit trail on every change to money, roles, and vehicles.',
   },
 ];
+
+export const metadata: Metadata = {
+  title: 'Fleet management for Ghanaian transport operators',
+  description:
+    'Manage vehicles, drivers, daily income, maintenance, documents, and fleet visibility from one operations workspace built for Ghana.',
+  alternates: {
+    canonical: new URL('/', siteUrl).toString(),
+  },
+  openGraph: {
+    title: 'Fleet management for Ghanaian transport operators',
+    description:
+      'Manage vehicles, drivers, daily income, maintenance, documents, and fleet visibility from one operations workspace built for Ghana.',
+    url: new URL('/', siteUrl).toString(),
+    images: [{
+      url: '/auth-splash-desktop.png',
+      alt: 'ProMove fleet vehicles on a scenic road',
+    }],
+  },
+};
 
 export default function LandingPage() {
   return (

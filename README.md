@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProMove
 
-## Getting Started
+ProMove is a mobile-first fleet operations application for Ghanaian transport businesses. The interface brings vehicle and driver registries, trip visibility, daily financial workflows, maintenance, documents, incidents, reports, and a driver PWA into one workspace.
 
-First, run the development server:
+## Project Status
+
+This repository is a working product prototype. Many screens use seeded demo data and client-side state. The database schema, provider interfaces, Docker services, and domain tests are foundations, not proof that production services are wired end to end.
+
+In particular, `AuthProvider` accepts demo logins without validating passwords or TOTP, the GPS endpoint streams fixed mock positions, provider implementations do not make real Hubtel/S3 requests, and the health endpoint currently reports configured services without probing them. Do not expose this build or its demo data as a production service. See [Architecture](docs/architecture.md) and [Roadmap](docs/roadmap.md) for current boundaries and launch blockers.
+
+## Requirements
+
+- Node.js 20 or newer
+- npm
+- Docker Desktop only if you want the local Postgres/Redis services
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open <http://localhost:3000>. The app starts with a demo owner session. The login page also has quick demo actions for owner, manager, driver, viewer, and platform administrator roles. These are for local demonstration only.
+
+Optional: copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SITE_URL` to the canonical public origin. It defaults to `https://promove.gh` for generated canonical links, sitemap URLs, and robots directives. This value is public, not a secret.
+
+## Commands
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run lint
+npm test
+npm exec next typegen
+npm exec tsc -- --noEmit
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Run `next typegen` before standalone TypeScript checks when Next.js route types are stale. `npm test` runs the current domain tests for tenancy isolation, money flows, offline sync, report loads, provider sandbox behavior, and GPS tracking.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Docker Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`docker compose up --build` starts the web app plus PostgreSQL 16 and Redis 7. The compose file uses checked-in development credentials and exposes service ports; use it only on a trusted local machine. The web application is not yet connected to the Postgres/Redis services, so starting them does not make mock screens persistent.
 
-## Learn More
+The database bootstrap schema is in [`docker/init-db.sql`](docker/init-db.sql). It is mounted as a first-initialization script; it is not a versioned migration system.
 
-To learn more about Next.js, take a look at the following resources:
+## Application Routes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Area | Routes |
+| --- | --- |
+| Public | `/`, `/privacy` |
+| Account | `/login`, `/register` |
+| Fleet operations | `/dashboard`, `/vehicles`, `/drivers`, `/trips`, `/live-map`, `/ledger`, `/fuel`, `/maintenance`, `/documents`, `/incidents`, `/reports`, `/intelligence`, `/notifications`, `/settings` |
+| Driver | `/driver-app` |
+| Health and integrations | `/api/health`, `/api/gps/positions`, `/api/payments/callback`, `/api/payments/status-check` |
+| Search metadata | `/robots.txt`, `/sitemap.xml` |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Private application surfaces are marked `noindex` and excluded from the sitemap. Only the public landing and privacy pages are listed for search crawlers.
 
-## Deploy on Vercel
+## Documentation
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Architecture and current system boundaries](docs/architecture.md)
+- [Prioritized delivery roadmap](docs/roadmap.md)
+- [SEO implementation and operating checklist](docs/seo.md)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Deployment Notes
+
+The Docker image is a multi-stage Next.js build. Before production, complete the P0 work in the roadmap: real server-side authentication and authorization, tenant-scoped persistence, verified integrations, secret management, and truthful health checks. Set `NEXT_PUBLIC_SITE_URL` to the final HTTPS origin and verify `/robots.txt`, `/sitemap.xml`, canonical tags, and social previews against that deployed host.

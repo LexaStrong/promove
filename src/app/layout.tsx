@@ -1,12 +1,36 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
+import { siteUrl } from '@/lib/site';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
-  title: 'ProMove: Fleet Management for Ghana',
+  metadataBase: siteUrl,
+  title: {
+    default: 'ProMove Fleet Management for Ghana',
+    template: '%s | ProMove',
+  },
   description:
-    'Digital fleet management platform for vehicle owners in Ghana. Track vehicles, drivers, daily income, maintenance, and documents, all in one place.',
+    'Fleet operations for Ghanaian transport businesses. Track vehicles, drivers, daily income, maintenance, documents, and live positions in one workspace.',
+  openGraph: {
+    type: 'website',
+    locale: 'en_GH',
+    siteName: 'ProMove',
+    title: 'ProMove Fleet Management for Ghana',
+    description:
+      'Fleet operations for Ghanaian transport businesses. Track vehicles, drivers, daily income, maintenance, documents, and live positions in one workspace.',
+    images: [{
+      url: '/auth-splash-desktop.png',
+      alt: 'ProMove fleet vehicles on a scenic road',
+    }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ProMove Fleet Management for Ghana',
+    description:
+      'Fleet operations for Ghanaian transport businesses. Track vehicles, drivers, daily income, maintenance, documents, and live positions in one workspace.',
+    images: ['/auth-splash-desktop.png'],
+  },
   manifest: '/manifest.json',
   icons: {
     icon: [
