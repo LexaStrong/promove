@@ -73,11 +73,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside id="primary-navigation" className={`pm-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="pm-sidebar-brand">
-          <div className="pm-sidebar-brand-icon">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProMove Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-          </div>
-          <span className="pm-sidebar-brand-name">ProMove</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/promove-logo-lockup.png" alt="ProMove Fleet Control" className="pm-brand-lockup pm-brand-lockup-sidebar" />
         </div>
 
         <nav className="pm-sidebar-nav">

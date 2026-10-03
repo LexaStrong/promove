@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Lock, Phone, ArrowRight, ShieldCheck, UserCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import AuthBrandPanel from '@/components/auth-brand-panel';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -53,44 +54,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 'var(--pm-space-6)',
-      background: 'var(--pm-bg-subtle)',
-    }}>
-      {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: 'var(--pm-space-6)' }}>
-        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-          <div className="pm-sidebar-brand-icon" style={{ width: 44, height: 44 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProMove Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-          </div>
-          <span style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            color: 'var(--pm-text)',
-            letterSpacing: '-0.02em',
-          }}>
-            ProMove
-          </span>
-        </Link>
-        <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem', marginTop: 8 }}>
-          Sign in to access your fleet operations and daily financial ledger
-        </p>
-      </div>
+    <main className="pm-login-layout">
+      <AuthBrandPanel />
 
-      {/* Main Login Card */}
-      <div className="pm-card" style={{
-        width: '100%',
-        maxWidth: 440,
-        padding: 'var(--pm-space-8)',
-        boxShadow: 'var(--pm-shadow-md)',
-      }}>
+      <section className="pm-login-form-panel" aria-labelledby="pm-login-title">
+        <div className="pm-login-form-inner">
+          <header className="pm-login-heading">
+            <span>SECURE SIGN-IN</span>
+            <h2 id="pm-login-title">Welcome back</h2>
+            <p>Sign in to access your fleet and daily operations.</p>
+          </header>
+
+          <div className="pm-card pm-login-card">
         {error && (
           <div style={{
             background: 'var(--pm-error-light)',
@@ -265,15 +240,14 @@ export default function LoginPage() {
             Launch Driver PWA
           </Link>
         </div>
-      </div>
+          </div>
 
-      {/* Footer */}
-      <div style={{ textAlign: 'center', marginTop: 'var(--pm-space-6)', fontSize: '0.875rem', color: 'var(--pm-text-secondary)' }}>
-        Don&apos;t have an account?{' '}
-        <Link href="/register" style={{ fontWeight: 600, color: 'var(--pm-blue-600)' }}>
-          Register your fleet
-        </Link>
-      </div>
-    </div>
+          <div className="pm-login-footer">
+            Don&apos;t have an account?{' '}
+            <Link href="/register">Register your fleet</Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import {
   Car, Users, BookOpen, Wrench, FileText,
@@ -54,14 +52,14 @@ export default function LandingPage() {
     <div>
       {/* Nav */}
       <nav className="pm-landing-nav">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div className="pm-sidebar-brand-icon">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProMove Logo" style={{ width: 22, height: 22, objectFit: 'contain' }} />
-          </div>
-          <span className="pm-sidebar-brand-name">ProMove</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/promove-logo-lockup.png"
+          alt="ProMove Fleet Control"
+          className="pm-brand-lockup pm-brand-lockup-landing"
+          style={{ width: 200, maxWidth: '40%', height: 'auto', flexShrink: 0 }}
+        />
+        <div className="pm-landing-nav-actions">
           <Link href="/login" className="pm-btn pm-btn-ghost">Sign in</Link>
           <Link href="/register" className="pm-btn pm-btn-primary">Get started</Link>
         </div>
@@ -257,8 +255,7 @@ export default function LandingPage() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProMove Logo" style={{ width: 24, height: 24, objectFit: 'contain' }} />
-            <span style={{ fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>ProMove</span>
+            <img src="/promove-logo-lockup.png" alt="ProMove Fleet Control" className="pm-brand-lockup pm-brand-lockup-footer" />
           </div>
           <div style={{
             fontSize: '0.8125rem',

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, Shield, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import AuthBrandPanel from '@/components/auth-brand-panel';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -54,44 +55,18 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 'var(--pm-space-6)',
-      background: 'var(--pm-bg-subtle)',
-    }}>
-      {/* Brand Header */}
-      <div style={{ textAlign: 'center', marginBottom: 'var(--pm-space-6)' }}>
-        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
-          <div className="pm-sidebar-brand-icon" style={{ width: 44, height: 44 }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="ProMove Logo" style={{ width: 28, height: 28, objectFit: 'contain' }} />
-          </div>
-          <span style={{
-            fontFamily: "'DM Sans', sans-serif",
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            color: 'var(--pm-text)',
-            letterSpacing: '-0.02em',
-          }}>
-            ProMove
-          </span>
-        </Link>
-        <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem', marginTop: 8 }}>
-          Create an organization account to digitize your fleet management
-        </p>
-      </div>
+    <main className="pm-login-layout pm-register-layout">
+      <AuthBrandPanel />
 
-      {/* Main Registration Card */}
-      <div className="pm-card" style={{
-        width: '100%',
-        maxWidth: 580,
-        padding: 'var(--pm-space-8)',
-        boxShadow: 'var(--pm-shadow-md)',
-      }}>
+      <section className="pm-login-form-panel" aria-labelledby="pm-register-title">
+        <div className="pm-login-form-inner pm-register-form-inner">
+          <header className="pm-login-heading">
+            <span>CREATE YOUR ACCOUNT</span>
+            <h2 id="pm-register-title">Create your account</h2>
+            <p>Set up your owner profile and fleet workspace.</p>
+          </header>
+
+          <div className="pm-card pm-login-card pm-register-card">
         {error && (
           <div style={{
             background: 'var(--pm-error-light)',
@@ -119,7 +94,7 @@ export default function RegisterPage() {
               Account Holder (Owner) Details
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+            <div className="pm-register-grid-two">
               <div>
                 <label className="pm-form-label">Full Name *</label>
                 <input
@@ -182,7 +157,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--pm-space-3)' }}>
+              <div className="pm-register-grid-three">
                 <div>
                   <label className="pm-form-label">Region</label>
                   <select
@@ -243,7 +218,7 @@ export default function RegisterPage() {
               Security & Access
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+            <div className="pm-register-grid-two">
               <div>
                 <label className="pm-form-label">Password *</label>
                 <input
@@ -295,15 +270,14 @@ export default function RegisterPage() {
             <ArrowRight size={16} />
           </button>
         </form>
-      </div>
+          </div>
 
-      {/* Footer */}
-      <div style={{ textAlign: 'center', marginTop: 'var(--pm-space-6)', fontSize: '0.875rem', color: 'var(--pm-text-secondary)' }}>
-        Already registered?{' '}
-        <Link href="/login" style={{ fontWeight: 600, color: 'var(--pm-blue-600)' }}>
-          Sign in
-        </Link>
-      </div>
-    </div>
+          <div className="pm-login-footer">
+            Already registered?{' '}
+            <Link href="/login">Sign in</Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }

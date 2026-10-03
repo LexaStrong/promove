@@ -237,7 +237,12 @@ export default function TrackingMap({
       const initialCenter: [number, number] = [5.6100, -0.1500];
       const initialZoom = 12;
 
-      const map = L.map('divMap', {
+      const mapContainer = mapContainerRef.current;
+      if (!mapContainer || !mapContainer.isConnected) {
+        return;
+      }
+
+      const map = L.map(mapContainer, {
         center: initialCenter,
         zoom: initialZoom,
         zoomControl: false,
@@ -370,10 +375,13 @@ export default function TrackingMap({
 
     return () => {
       isCancelled = true;
+      Object.values(markersRef.current).forEach(marker => marker.remove());
+      markersRef.current = {};
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      hasFittedFleetRef.current = false;
     };
   }, []);
 
@@ -472,8 +480,12 @@ export default function TrackingMap({
           </div>
         `);
 
-        marker.addTo(map);
-        markersRef.current[veh.id] = marker;
+        try {
+          marker.addTo(map);
+          markersRef.current[veh.id] = marker;
+        } catch {
+          // Ignore transient Leaflet pane issues during re-renders or stale map lifecycle transitions.
+        }
       });
 
       // Fit whole fleet corridor so every marker is inside map bounds and fully clickable
