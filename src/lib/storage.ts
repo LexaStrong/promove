@@ -43,11 +43,8 @@ export class NeonObjectStorageProvider implements StorageProvider {
       'https://br-old-moon-b4kw1lhy.storage.c-6.us-east-2.aws.neon.tech';
     this.defaultBucket = process.env.NEON_STORAGE_BUCKET || 'documents';
 
-    const accessKeyId =
-      process.env.NEON_STORAGE_ACCESS_KEY_ID || 'nak_live_a026d22e13c84ad18dc30c90edb66f8e';
-    const secretAccessKey =
-      process.env.NEON_STORAGE_SECRET_ACCESS_KEY ||
-      'nsk_live_70f63d41afab314a4f3d915554936fd5ca3385af9b0ecb7199bbfc39c6faebc8';
+    const accessKeyId = process.env.NEON_STORAGE_ACCESS_KEY_ID || '';
+    const secretAccessKey = process.env.NEON_STORAGE_SECRET_ACCESS_KEY || '';
     const region = process.env.NEON_STORAGE_REGION || 'us-east-2';
 
     this.s3Client = new S3Client({

@@ -12,7 +12,7 @@ enum Constants {
     static let defaultApiBaseUrl = "http://localhost:3000"
     
     /// Production / Remote API endpoint fallback
-    static let fallbackApiBaseUrl = "https://promove.africa"
+    static let fallbackApiBaseUrl = "https://promove.gh"
     
     /// Telemetry ping frequency in seconds
     static let telemetryIntervalSeconds: TimeInterval = 4.0

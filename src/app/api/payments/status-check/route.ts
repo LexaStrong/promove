@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizePlainText } from '@/lib/security';
 
 export async function POST(request: NextRequest) {
   try {
     const { clientReference } = await request.json();
 
-    if (!clientReference) {
-      return NextResponse.json({ error: 'Missing clientReference parameter' }, { status: 400 });
+    const cleanRef = sanitizePlainText(clientReference, 64);
+    if (!cleanRef) {
+      return NextResponse.json({ error: 'Missing or invalid clientReference parameter' }, { status: 400 });
     }
 
     // In production, queries Hubtel Merchant Status Check API

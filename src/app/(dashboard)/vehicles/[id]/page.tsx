@@ -18,6 +18,7 @@ import {
 import { useFleet } from '@/lib/fleet-context';
 import { fleetPositions, getVehicleGpsPosition } from '@/lib/gps/fleet-positions';
 import type { VehicleMarkerData } from '@/components/map/tracking-map';
+import { getCuratedMakes, getCuratedModels } from '@/lib/vehicle-catalog';
 
 // Dynamically import Leaflet Map for SSR compatibility in Next.js
 const TrackingMap = dynamic(() => import('@/components/map/tracking-map'), {
@@ -248,12 +249,22 @@ export default function VehicleDetailPage() {
     <div>
       {/* Header */}
       <div style={{ marginBottom: 'var(--pm-space-6)' }}>
-        <Link href="/vehicles" style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontSize: '0.8125rem', color: 'var(--pm-text-secondary)',
-          marginBottom: 'var(--pm-space-3)',
-        }}>
-          <ArrowLeft size={14} /> Back to Vehicles
+        <Link
+          href="/vehicles"
+          className="pm-btn pm-btn-ghost pm-btn-sm"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            marginBottom: 'var(--pm-space-3)',
+            padding: '6px 14px',
+            borderRadius: 'var(--pm-radius-md)',
+            fontWeight: 500,
+            border: '1px solid var(--pm-border)',
+            background: 'var(--pm-surface)',
+          }}
+        >
+          <ArrowLeft size={15} /> Back to Vehicles
         </Link>
 
         <div className="pm-page-header" style={{ marginBottom: 0 }}>
@@ -697,30 +708,33 @@ export default function VehicleDetailPage() {
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--pm-space-4)' }}>
                     <div className="pm-input-group">
-                      <label className="pm-label">Make</label>
-                      <input
-                        type="text"
-                        className="pm-input"
-                        value={editForm.make}
-                        onChange={e => setEditForm({ ...editForm, make: e.target.value })}
-                        required
-                      />
+                      <label className="pm-label">Vehicle Type</label>
+                      <select
+                        className="pm-select"
+                        value={editForm.vehicle_type}
+                        onChange={e => {
+                          const newType = e.target.value as VehicleType;
+                          const makes = getCuratedMakes(newType);
+                          const newMake = makes[0] || 'Other';
+                          const models = getCuratedModels(newMake, newType);
+                          setEditForm({
+                            ...editForm,
+                            vehicle_type: newType,
+                            make: newMake,
+                            model: models[0] || '',
+                          });
+                        }}
+                      >
+                        <option value="trotro">Trotro</option>
+                        <option value="taxi">Taxi</option>
+                        <option value="bus">Bus</option>
+                        <option value="truck">Truck</option>
+                        <option value="pickup">Pickup</option>
+                        <option value="other">Other</option>
+                      </select>
                     </div>
-                    <div className="pm-input-group">
-                      <label className="pm-label">Model</label>
-                      <input
-                        type="text"
-                        className="pm-input"
-                        value={editForm.model}
-                        onChange={e => setEditForm({ ...editForm, model: e.target.value })}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
                     <div className="pm-input-group">
                       <label className="pm-label">Year</label>
                       <input
@@ -730,20 +744,101 @@ export default function VehicleDetailPage() {
                         onChange={e => setEditForm({ ...editForm, year: parseInt(e.target.value, 10) || 2024 })}
                       />
                     </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--pm-space-4)' }}>
                     <div className="pm-input-group">
-                      <label className="pm-label">Vehicle Type</label>
-                      <select
-                        className="pm-select"
-                        value={editForm.vehicle_type}
-                        onChange={e => setEditForm({ ...editForm, vehicle_type: e.target.value as VehicleType })}
-                      >
-                        <option value="trotro">Trotro</option>
-                        <option value="taxi">Taxi</option>
-                        <option value="bus">Bus</option>
-                        <option value="truck">Truck</option>
-                        <option value="pickup">Pickup</option>
-                        <option value="other">Other</option>
-                      </select>
+                      <label className="pm-label">Make *</label>
+                      {(() => {
+                        const curatedMakes = getCuratedMakes(editForm.vehicle_type);
+                        const isCurated = curatedMakes.includes(editForm.make);
+                        const selectVal = isCurated ? editForm.make : 'Other';
+
+                        return (
+                          <>
+                            <select
+                              className="pm-select"
+                              value={selectVal}
+                              onChange={e => {
+                                const newMake = e.target.value;
+                                if (newMake === 'Other') {
+                                  setEditForm({ ...editForm, make: 'Other', model: 'Other' });
+                                } else {
+                                  const models = getCuratedModels(newMake, editForm.vehicle_type);
+                                  setEditForm({
+                                    ...editForm,
+                                    make: newMake,
+                                    model: models[0] || '',
+                                  });
+                                }
+                              }}
+                            >
+                              {curatedMakes.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                              <option value="Other">Other / Custom Make...</option>
+                            </select>
+                            {selectVal === 'Other' && (
+                              <input
+                                type="text"
+                                className="pm-input"
+                                style={{ marginTop: 6 }}
+                                placeholder="Enter custom make..."
+                                value={editForm.make === 'Other' ? '' : editForm.make}
+                                onChange={e => setEditForm({ ...editForm, make: e.target.value })}
+                                required
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Model *</label>
+                      {(() => {
+                        const curatedModels = getCuratedModels(editForm.make, editForm.vehicle_type);
+                        const exactMatch = curatedModels.find(m => m === editForm.model);
+                        const fuzzyMatch = !exactMatch && editForm.model && editForm.model !== 'Other'
+                          ? curatedModels.find(m => m.toLowerCase().startsWith(editForm.model.toLowerCase()) || m.toLowerCase().includes(editForm.model.toLowerCase()))
+                          : null;
+                        const matchedModel = exactMatch || fuzzyMatch;
+                        const selectVal = matchedModel ? matchedModel : 'Other';
+
+                        return (
+                          <>
+                            {curatedModels.length > 0 ? (
+                              <select
+                                className="pm-select"
+                                value={selectVal}
+                                onChange={e => {
+                                  if (e.target.value === 'Other') {
+                                    setEditForm({ ...editForm, model: 'Other' });
+                                  } else {
+                                    setEditForm({ ...editForm, model: e.target.value });
+                                  }
+                                }}
+                              >
+                                {curatedModels.map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                                <option value="Other">Other / Custom Model...</option>
+                              </select>
+                            ) : null}
+
+                            {(curatedModels.length === 0 || selectVal === 'Other') && (
+                              <input
+                                type="text"
+                                className="pm-input"
+                                style={{ marginTop: curatedModels.length > 0 ? 6 : 0 }}
+                                placeholder="Enter model name..."
+                                value={editForm.model === 'Other' ? '' : editForm.model}
+                                onChange={e => setEditForm({ ...editForm, model: e.target.value })}
+                                required
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
 

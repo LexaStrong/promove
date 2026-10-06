@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server';
-import { auth, clerkClient } from '@clerk/nextjs/server';
 
+/**
+ * SECURITY LOCKDOWN:
+ * Self-elevation of user roles via this endpoint is permanently disabled.
+ * Administrative privileges can only be exercised via the dedicated admin login portal
+ * backed by verified server-side credentials and HMAC session tokens.
+ */
 export async function POST() {
-  try {
-    const { userId } = await auth();
-    if (!userId) {
-      return NextResponse.json({ error: 'Unauthorized: No active session' }, { status: 401 });
-    }
+  return NextResponse.json(
+    {
+      error: 'Forbidden: Self-elevation of administrative privileges is disabled for platform security.',
+      code: 'ADMIN_ELEVATION_DISABLED',
+    },
+    { status: 403 }
+  );
+}
 
-    const client = await clerkClient();
-    await client.users.updateUserMetadata(userId, {
-      publicMetadata: {
-        role: 'platform_admin',
-      },
-    });
-
-    return NextResponse.json({ success: true, role: 'platform_admin' });
-  } catch (err: any) {
-    console.error('Error updating Clerk user role:', err);
-    return NextResponse.json({ error: err?.message || 'Failed to update metadata' }, { status: 500 });
-  }
+export async function GET() {
+  return NextResponse.json(
+    { error: 'Method not allowed.' },
+    { status: 405 }
+  );
 }

@@ -25,13 +25,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Store raw payload for dispute handling
+    // Store raw payload for dispute handling (bounded ring buffer to prevent memory leaks)
     rawCallbackLogs.push({
       timestamp: new Date().toISOString(),
       clientReference: verification.clientReference,
       payload: rawBody,
       ip,
     });
+    if (rawCallbackLogs.length > 100) {
+      rawCallbackLogs.shift();
+    }
 
     if (verification.status === 'paid') {
       // Create confirmed ledger entry
@@ -76,7 +79,7 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   return NextResponse.json({
     status: 'active',
-    logsCount: rawCallbackLogs.length,
-    recentCallbacks: rawCallbackLogs.slice(-10),
+    receiver: 'Hubtel Mobile Money Webhook Gateway',
+    timestamp: new Date().toISOString(),
   });
 }

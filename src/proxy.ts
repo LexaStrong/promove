@@ -1,40 +1,92 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyAdminSessionToken, ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
 
-// Fallback to project test keys if Vercel Environment Variables were not yet configured
-const publishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
-  "pk_test_dmlhYmxlLWdyaWZmb24tNTU1OS5jbGVyay5hY2NvdW50cy5kZXYk";
+// Public routes explicitly permitted without authentication
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/admin(.*)", // Admin page renders its own dedicated HMAC cryptographic login
+  "/api/admin/auth/login",
+  "/api/admin/auth/session",
+  "/api/admin/auth/logout",
+  "/api/admin/set-role",
+  "/api/gps/positions",
+  "/api/gps/telemetry",
+  "/api/gps/traccar-webhook",
+  "/api/health",
+  "/api/payments/callback",
+  "/api/payments/status-check",
+  "/api/system-status",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/__clerk/:path*",
+]);
 
-const secretKey =
-  process.env.CLERK_SECRET_KEY ||
-  "sk_test_hmrbBDDmJrRZwLoOveRa4YP4101JgJA6RJsWNWTRij";
-
-if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = publishableKey;
-}
-if (!process.env.CLERK_SECRET_KEY) {
-  process.env.CLERK_SECRET_KEY = secretKey;
-}
+// Administrative API routes requiring valid administrator HMAC session
+const isAdminApiRoute = createRouteMatcher([
+  "/api/admin/:path*",
+]);
 
 let clerkHandler: any = null;
 try {
-  clerkHandler = clerkMiddleware();
+  clerkHandler = clerkMiddleware(async (auth, req) => {
+    const { pathname } = req.nextUrl;
+
+    // ── 1. Admin API Route "Deny by Default" Enforcement ──
+    if (isAdminApiRoute(req)) {
+      if (
+        pathname !== "/api/admin/auth/login" &&
+        pathname !== "/api/admin/auth/session" &&
+        pathname !== "/api/admin/auth/logout" &&
+        pathname !== "/api/admin/set-role"
+      ) {
+        const adminCookie = req.cookies.get(ADMIN_COOKIE_NAME)?.value;
+        const session = verifyAdminSessionToken(adminCookie);
+        if (!session) {
+          return NextResponse.json(
+            { error: "Unauthorized: Platform administrator session required.", code: "DENY_BY_DEFAULT" },
+            { status: 401 }
+          );
+        }
+      }
+    }
+
+    // ── 2. Protected User Routes "Deny by Default" Enforcement ──
+    if (!isPublicRoute(req)) {
+      await auth.protect();
+    }
+  });
 } catch (e) {
-  console.warn("Clerk middleware init warning:", e);
+  console.warn("Clerk middleware init notice:", e);
 }
 
-export default function proxy(request: NextRequest, event: any) {
+export default async function proxy(request: NextRequest, event: any) {
+  let response: any;
+
   if (clerkHandler) {
     try {
-      return clerkHandler(request, event);
+      response = (await clerkHandler(request, event)) || NextResponse.next();
     } catch (err) {
       console.warn("Clerk proxy fallback:", err);
-      return NextResponse.next();
+      response = NextResponse.next();
     }
+  } else {
+    response = NextResponse.next();
   }
-  return NextResponse.next();
+
+  // ── 3. Attach Defense-in-Depth HTTP Security Headers ──
+  if (response && response.headers && typeof response.headers.set === 'function') {
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(self)");
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
+  return response;
 }
 
 export const config = {

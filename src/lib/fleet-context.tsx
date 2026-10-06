@@ -145,10 +145,11 @@ export function FleetProvider({ children }: { children: ReactNode }) {
           seats: v.seats || 15,
           fuel_type: v.fuel_type || 'diesel',
           odometer_km: v.odometer_km || 0,
-          daily_target_pesewas: 35000,
+          daily_target_pesewas: v.daily_target_pesewas || 35000,
           gps_device_id: null,
           archived_at: null,
           status: v.status || 'active',
+          current_driver: v.current_driver || undefined,
           created_at: new Date().toISOString(),
         }));
         setUserVehicles(mappedVehicles);

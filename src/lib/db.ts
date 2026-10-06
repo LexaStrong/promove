@@ -1,16 +1,17 @@
 import { neon } from '@neondatabase/serverless';
 
-// Neon Lakebase Postgres connection string
-const DATABASE_URL =
-  process.env.DATABASE_URL ||
-  'postgresql://neondb_owner:npg_YSJd2WBy0eKj@ep-still-mountain-b43zkaju-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require';
+// Neon Lakebase Postgres connection string - strictly read from environment variables
+const DATABASE_URL = process.env.DATABASE_URL;
 
-export const sql = neon(DATABASE_URL);
+export const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
 
 /**
  * Execute a parameterized SQL query on Neon Lakebase Postgres
  */
 export async function query<T = any>(queryString: string, params: any[] = []): Promise<T[]> {
+  if (!sql) {
+    return [];
+  }
   const result = await (sql as any).query(queryString, params);
   return result as T[];
 }
@@ -19,6 +20,9 @@ export async function query<T = any>(queryString: string, params: any[] = []): P
  * Test database connectivity to Neon Lakebase Postgres
  */
 export async function checkDatabaseConnection(): Promise<{ ok: boolean; timestamp?: string; tables?: number; error?: string }> {
+  if (!sql) {
+    return { ok: false, error: 'DATABASE_URL is not configured' };
+  }
   try {
     const rows = await (sql as any).query(
       "SELECT NOW() as current_time, count(*)::int as table_count FROM information_schema.tables WHERE table_schema = 'public'"

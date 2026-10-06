@@ -5,7 +5,7 @@ object Constants {
     // 10.0.2.2 maps to host localhost in Android emulator, fallback to localhost:3000
     const val DEFAULT_EMULATOR_API_URL = "http://10.0.2.2:3000"
     const val DEFAULT_LOCAL_API_URL = "http://localhost:3000"
-    const val FALLBACK_API_URL = "https://promove.africa"
+    const val FALLBACK_API_URL = "https://promove.gh"
 
     // Telemetry ping interval (milliseconds)
     const val TELEMETRY_INTERVAL_MS = 4000L

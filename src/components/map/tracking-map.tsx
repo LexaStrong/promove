@@ -691,7 +691,7 @@ export default function TrackingMap({
 
   return (
     <div
-    className="tracking-map-controls"
+      className="tracking-map-controls"
       style={{
         position: isExpanded ? 'fixed' : 'relative',
         top: isExpanded ? 0 : undefined,
@@ -700,7 +700,8 @@ export default function TrackingMap({
         bottom: isExpanded ? 0 : undefined,
         width: isExpanded ? '100vw' : '100%',
         height: isExpanded ? '100vh' : '100%',
-        zIndex: isExpanded ? 99999 : undefined,
+        zIndex: isExpanded ? 9999 : 1,
+        isolation: 'isolate',
         display: 'flex',
         flexDirection: 'column',
         background: '#0F2633',
@@ -714,7 +715,7 @@ export default function TrackingMap({
           position: 'absolute',
           top: 10,
           left: 10,
-          zIndex: 400,
+          zIndex: 10,
           display: 'flex',
           alignItems: 'center',
           gap: 8,
@@ -908,9 +909,9 @@ export default function TrackingMap({
         <div
           style={{
             position: 'absolute',
-            top: 0,
-            right: 0,
-            zIndex: 400,
+            top: 10,
+            right: 10,
+            zIndex: 10,
             pointerEvents: 'auto',
           }}
         >

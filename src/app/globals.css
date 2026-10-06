@@ -665,16 +665,20 @@ a:hover {
 .pm-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(26, 25, 23, 0.5);
+  background: rgba(26, 25, 23, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 10005;
   padding: var(--pm-space-4);
   animation: pm-fade-in 150ms ease;
 }
 
 .pm-modal {
+  position: relative;
+  z-index: 10006;
   background: var(--pm-surface);
   border-radius: var(--pm-radius-xl);
   box-shadow: var(--pm-shadow-xl);
@@ -718,7 +722,7 @@ a:hover {
   border-right: 1px solid var(--pm-border);
   display: flex;
   flex-direction: column;
-  z-index: 40;
+  z-index: 10002;
   transition: transform var(--pm-transition-slow);
 }
 
@@ -1009,9 +1013,19 @@ a:hover {
   gap: var(--pm-space-1);
   border-bottom: 1px solid var(--pm-border);
   margin-bottom: var(--pm-space-6);
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.pm-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .pm-tab {
+  flex-shrink: 0;
   padding: var(--pm-space-3) var(--pm-space-4);
   font-size: 0.875rem;
   font-weight: 500;
@@ -1172,21 +1186,22 @@ a:hover {
   .pm-hamburger {
     display: flex;
   }
+  .pm-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    padding: 0;
+    border: 0;
+    background: rgba(26, 25, 23, 0.48);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    cursor: pointer;
+  }
 }
 
 @media (max-width: 640px) {
   :root {
     --pm-topbar-height: 56px;
-  }
-
-  .pm-sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 35;
-    padding: 0;
-    border: 0;
-    background: rgba(26, 25, 23, 0.42);
-    cursor: pointer;
   }
 
   .pm-topbar {
@@ -3528,5 +3543,108 @@ a:hover {
     font-size: 0.75rem;
   }
 }
+
+/* ── Mobile Bottom Navigation Bar & Layout Polish ─────────── */
+.pm-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .pm-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--pm-border);
+    z-index: 9999;
+    align-items: stretch;
+    justify-content: space-around;
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  [data-theme="dark"] .pm-bottom-nav {
+    background: rgba(22, 28, 36, 0.96);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.28);
+  }
+
+  .pm-bottom-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    padding: 6px 0;
+    color: var(--pm-text-muted);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    gap: 3px;
+    transition: color 0.15s ease, transform 0.15s ease;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pm-bottom-nav-item:active {
+    transform: scale(0.93);
+  }
+
+  .pm-bottom-nav-item.active {
+    color: var(--pm-blue-600);
+    font-weight: 700;
+  }
+
+  .pm-bottom-nav-item.active svg {
+    stroke: var(--pm-blue-600);
+  }
+
+  .pm-main {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Responsive Vehicle List / Table on Mobile */
+  .pm-desktop-vehicle-table {
+    display: none !important;
+  }
+
+  .pm-mobile-vehicle-table {
+    display: table !important;
+    width: 100%;
+  }
+
+  .pm-mobile-vehicle-card {
+    padding: var(--pm-space-3);
+    border-bottom: 1px solid var(--pm-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-decoration: none;
+    color: inherit;
+    gap: var(--pm-space-3);
+  }
+
+  .pm-mobile-vehicle-card:last-child {
+    border-bottom: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .pm-desktop-vehicle-table {
+    display: table !important;
+  }
+
+  .pm-mobile-vehicle-table {
+    display: none !important;
+  }
+}
+
 
 

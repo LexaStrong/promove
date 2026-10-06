@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Car, Building2, User, Phone, Plus, Trash2, ArrowRight,
-  ShieldCheck, CheckCircle2, Sparkles, AlertCircle, Hash
+  ShieldCheck, CheckCircle2, Sparkles, AlertCircle, Hash,
+  Fuel, Gauge, Calendar, UserCheck, Banknote, Palette,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { writeFleetWorkspace } from '@/lib/fleet-storage';
@@ -21,14 +22,25 @@ interface VehicleDraft {
   vehicle_type: 'trotro' | 'taxi' | 'bus' | 'hauling' | 'delivery';
   make: string;
   model: string;
+  // Specifications
+  year: number;
+  seats: number;
+  fuel_type: 'diesel' | 'petrol' | 'lpg' | 'electric';
+  odometer_km: number;
+  colour: string;
+  // Current Assignment
+  assigned: boolean;
+  driver_name: string;
+  driver_phone: string;
+  daily_target_cedis: number;
 }
 
 const VEHICLE_TYPE_CONFIG = {
-  trotro: { label: 'Trotro (Minibus)', defaultMake: DEFAULT_VEHICLE_PRESETS.trotro.make, defaultModel: DEFAULT_VEHICLE_PRESETS.trotro.model, seats: 15 },
-  taxi: { label: 'Taxi (Cab / Saloon)', defaultMake: DEFAULT_VEHICLE_PRESETS.taxi.make, defaultModel: DEFAULT_VEHICLE_PRESETS.taxi.model, seats: 4 },
-  bus: { label: 'Intercity Bus / Coach', defaultMake: DEFAULT_VEHICLE_PRESETS.bus.make, defaultModel: DEFAULT_VEHICLE_PRESETS.bus.model, seats: 32 },
-  hauling: { label: 'Haulage Truck / Tipper', defaultMake: DEFAULT_VEHICLE_PRESETS.hauling.make, defaultModel: DEFAULT_VEHICLE_PRESETS.hauling.model, seats: 3 },
-  delivery: { label: 'Delivery Van', defaultMake: DEFAULT_VEHICLE_PRESETS.delivery.make, defaultModel: DEFAULT_VEHICLE_PRESETS.delivery.model, seats: 2 },
+  trotro: { label: 'Trotro (Minibus)', defaultMake: DEFAULT_VEHICLE_PRESETS.trotro.make, defaultModel: DEFAULT_VEHICLE_PRESETS.trotro.model, seats: 15, year: 2023, fuel_type: 'diesel' as const, colour: 'White', dailyTarget: 350 },
+  taxi: { label: 'Taxi (Cab / Saloon)', defaultMake: DEFAULT_VEHICLE_PRESETS.taxi.make, defaultModel: DEFAULT_VEHICLE_PRESETS.taxi.model, seats: 4, year: 2022, fuel_type: 'petrol' as const, colour: 'Yellow / Ash', dailyTarget: 200 },
+  bus: { label: 'Intercity Bus / Coach', defaultMake: DEFAULT_VEHICLE_PRESETS.bus.make, defaultModel: DEFAULT_VEHICLE_PRESETS.bus.model, seats: 32, year: 2023, fuel_type: 'diesel' as const, colour: 'White', dailyTarget: 600 },
+  hauling: { label: 'Haulage Truck / Tipper', defaultMake: DEFAULT_VEHICLE_PRESETS.hauling.make, defaultModel: DEFAULT_VEHICLE_PRESETS.hauling.model, seats: 3, year: 2022, fuel_type: 'diesel' as const, colour: 'Red / White', dailyTarget: 800 },
+  delivery: { label: 'Delivery Van', defaultMake: DEFAULT_VEHICLE_PRESETS.delivery.make, defaultModel: DEFAULT_VEHICLE_PRESETS.delivery.model, seats: 2, year: 2023, fuel_type: 'petrol' as const, colour: 'Silver', dailyTarget: 250 },
 };
 
 export default function OnboardingPage() {
@@ -75,6 +87,15 @@ export default function OnboardingPage() {
           vehicle_type: chosenType,
           make: cfg.defaultMake,
           model: cfg.defaultModel,
+          year: cfg.year,
+          seats: cfg.seats,
+          fuel_type: cfg.fuel_type,
+          odometer_km: 0,
+          colour: cfg.colour,
+          assigned: true,
+          driver_name: '',
+          driver_phone: '',
+          daily_target_cedis: cfg.dailyTarget,
         });
       }
       setVehicles([...vehicles, ...added]);
@@ -83,7 +104,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleVehicleChange = (index: number, field: keyof VehicleDraft, value: string) => {
+  const handleVehicleChange = (index: number, field: keyof VehicleDraft, value: any) => {
     const updated = [...vehicles];
     if (field === 'vehicle_type') {
       const vType = value as keyof typeof VEHICLE_TYPE_CONFIG;
@@ -93,6 +114,11 @@ export default function OnboardingPage() {
         vehicle_type: vType,
         make: cfg.defaultMake,
         model: cfg.defaultModel,
+        seats: cfg.seats,
+        year: cfg.year,
+        fuel_type: cfg.fuel_type,
+        colour: cfg.colour,
+        daily_target_cedis: cfg.dailyTarget,
       };
     } else {
       updated[index] = {
@@ -125,15 +151,24 @@ export default function OnboardingPage() {
 
   const handleAddVehicle = () => {
     const nextIdx = vehicles.length + 1;
-    const defaultTrotro = DEFAULT_VEHICLE_PRESETS.trotro;
+    const defaultTrotro = VEHICLE_TYPE_CONFIG.trotro;
     setVehicles([
       ...vehicles,
       {
         id: `v-${Date.now()}-${nextIdx}`,
         plate_number: '',
         vehicle_type: 'trotro',
-        make: defaultTrotro.make,
-        model: defaultTrotro.model,
+        make: defaultTrotro.defaultMake,
+        model: defaultTrotro.defaultModel,
+        year: defaultTrotro.year,
+        seats: defaultTrotro.seats,
+        fuel_type: defaultTrotro.fuel_type,
+        odometer_km: 0,
+        colour: defaultTrotro.colour,
+        assigned: true,
+        driver_name: '',
+        driver_phone: '',
+        daily_target_cedis: defaultTrotro.dailyTarget,
       },
     ]);
   };
@@ -195,29 +230,73 @@ export default function OnboardingPage() {
             vehicle_type: v.vehicle_type,
             make: v.make,
             model: v.model,
+            year: v.year,
+            seats: v.seats,
+            fuel_type: v.fuel_type,
+            odometer_km: v.odometer_km,
+            colour: v.colour,
+            driver_name: v.assigned && v.driver_name?.trim() ? v.driver_name.trim() : null,
+            driver_phone: v.assigned && v.driver_phone?.trim() ? v.driver_phone.trim() : null,
+            daily_target_pesewas: (v.daily_target_cedis || 0) * 100,
           })),
         }),
       });
 
       const data = await res.json();
 
-      const payload = {
-        orgName: orgName.trim(),
-        contact: contact.trim(),
-        username: username.trim(),
-        vehicles: validVehicles.map((v, i) => ({
-          id: `veh-${Date.now()}-${i + 1}`,
+      const createdDrivers: any[] = [];
+      const createdVehicles = validVehicles.map((v, i) => {
+        const vehId = `veh-${Date.now()}-${i + 1}`;
+        let currentDriver: any = undefined;
+
+        if (v.assigned && v.driver_name?.trim()) {
+          const drvId = `drv-${Date.now()}-${i + 1}`;
+          currentDriver = {
+            id: drvId,
+            org_id: 'org-user',
+            user_id: null,
+            full_name: v.driver_name.trim(),
+            phone: v.driver_phone?.trim() || contact.trim(),
+            role_type: 'driver',
+            licence_number_enc: null,
+            licence_class: 'C',
+            licence_expiry: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split('T')[0],
+            status: 'active',
+            assigned_vehicle_id: vehId,
+            created_at: new Date().toISOString(),
+          };
+          createdDrivers.push(currentDriver);
+        }
+
+        return {
+          id: vehId,
+          org_id: 'org-user',
           plate_number: v.plate_number.toUpperCase().trim(),
           vehicle_type: v.vehicle_type,
           make: v.make || 'Toyota',
           model: v.model || 'Hiace',
-          status: 'active' as const,
-          odometer_km: 0,
-        })),
+          year: v.year || 2023,
+          seats: v.seats || 15,
+          fuel_type: v.fuel_type || 'diesel',
+          colour: v.colour || 'White',
+          odometer_km: v.odometer_km || 0,
+          daily_target_pesewas: (v.daily_target_cedis || 350) * 100,
+          status: currentDriver ? ('active' as const) : ('idle' as const),
+          current_driver: currentDriver,
+          archived_at: null,
+          created_at: new Date().toISOString(),
+        };
+      });
+
+      const payload = {
+        orgName: orgName.trim(),
+        contact: contact.trim(),
+        username: username.trim(),
+        vehicles: createdVehicles,
         createdAt: new Date().toISOString(),
       };
 
-      writeFleetWorkspace(user?.id, payload, payload.vehicles);
+      writeFleetWorkspace(user?.id, payload, createdVehicles, createdDrivers);
 
       setSuccess(true);
       setTimeout(() => {
@@ -489,6 +568,7 @@ export default function OnboardingPage() {
                         </button>
                       </div>
 
+                      {/* 1. Vehicle Identification */}
                       <div className="pm-onboarding-vehicle-grid">
                         <div>
                           <label className="pm-form-label">Vehicle Type *</label>
@@ -523,89 +603,249 @@ export default function OnboardingPage() {
                             />
                           </div>
                         </div>
+                      </div>
 
-                        <div>
-                          <label className="pm-form-label">Make *</label>
-                          {(() => {
-                            const curatedMakes = getCuratedMakes(v.vehicle_type);
-                            const isCurated = curatedMakes.includes(v.make);
-                            const selectValue = isCurated ? v.make : 'Other';
-
-                            return (
-                              <>
-                                <select
-                                  className="pm-input"
-                                  value={selectValue}
-                                  onChange={e => handleMakeChange(index, e.target.value)}
-                                >
-                                  {curatedMakes.map(m => (
-                                    <option key={m} value={m}>{m}</option>
-                                  ))}
-                                  <option value="Other">Other / Custom Make...</option>
-                                </select>
-                                {selectValue === 'Other' && (
-                                  <input
-                                    type="text"
-                                    className="pm-input"
-                                    style={{ marginTop: 6 }}
-                                    placeholder="Enter custom make..."
-                                    value={v.make === 'Other' ? '' : v.make}
-                                    onChange={e => handleVehicleChange(index, 'make', e.target.value)}
-                                    required
-                                  />
-                                )}
-                              </>
-                            );
-                          })()}
+                      {/* 2. Vehicle Specifications */}
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--pm-border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: 'var(--pm-text)', marginBottom: 12 }}>
+                          <Car size={15} style={{ color: 'var(--pm-blue-600)' }} />
+                          Vehicle Specifications
                         </div>
 
-                        <div>
-                          <label className="pm-form-label">Model *</label>
-                          {(() => {
-                            const curatedModels = getCuratedModels(v.make, v.vehicle_type);
-                            const exactMatch = curatedModels.find(m => m === v.model);
-                            const fuzzyMatch = !exactMatch && v.model && v.model !== 'Other'
-                              ? curatedModels.find(m => m.toLowerCase().startsWith(v.model.toLowerCase()) || m.toLowerCase().includes(v.model.toLowerCase()))
-                              : null;
-                            const matchedModel = exactMatch || fuzzyMatch;
-                            const selectValue = matchedModel ? matchedModel : 'Other';
+                        <div className="pm-onboarding-vehicle-grid">
+                          <div>
+                            <label className="pm-form-label">Make *</label>
+                            {(() => {
+                              const curatedMakes = getCuratedMakes(v.vehicle_type);
+                              const isCurated = curatedMakes.includes(v.make);
+                              const selectValue = isCurated ? v.make : 'Other';
 
-                            return (
-                              <>
-                                {curatedModels.length > 0 ? (
+                              return (
+                                <>
                                   <select
                                     className="pm-input"
                                     value={selectValue}
-                                    onChange={e => {
-                                      if (e.target.value === 'Other') {
-                                        handleVehicleChange(index, 'model', 'Other');
-                                      } else {
-                                        handleVehicleChange(index, 'model', e.target.value);
-                                      }
-                                    }}
+                                    onChange={e => handleMakeChange(index, e.target.value)}
                                   >
-                                    {curatedModels.map(m => (
+                                    {curatedMakes.map(m => (
                                       <option key={m} value={m}>{m}</option>
                                     ))}
-                                    <option value="Other">Other / Custom Model...</option>
+                                    <option value="Other">Other / Custom Make...</option>
                                   </select>
-                                ) : null}
+                                  {selectValue === 'Other' && (
+                                    <input
+                                      type="text"
+                                      className="pm-input"
+                                      style={{ marginTop: 6 }}
+                                      placeholder="Enter custom make..."
+                                      value={v.make === 'Other' ? '' : v.make}
+                                      onChange={e => handleVehicleChange(index, 'make', e.target.value)}
+                                      required
+                                    />
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
 
-                                {(curatedModels.length === 0 || selectValue === 'Other') && (
-                                  <input
-                                    type="text"
-                                    className="pm-input"
-                                    style={{ marginTop: curatedModels.length > 0 ? 6 : 0 }}
-                                    placeholder="Enter model name..."
-                                    value={v.model === 'Other' ? '' : v.model}
-                                    onChange={e => handleVehicleChange(index, 'model', e.target.value)}
-                                    required
-                                  />
-                                )}
-                              </>
-                            );
-                          })()}
+                          <div>
+                            <label className="pm-form-label">Model *</label>
+                            {(() => {
+                              const curatedModels = getCuratedModels(v.make, v.vehicle_type);
+                              const exactMatch = curatedModels.find(m => m === v.model);
+                              const fuzzyMatch = !exactMatch && v.model && v.model !== 'Other'
+                                ? curatedModels.find(m => m.toLowerCase().startsWith(v.model.toLowerCase()) || m.toLowerCase().includes(v.model.toLowerCase()))
+                                : null;
+                              const matchedModel = exactMatch || fuzzyMatch;
+                              const selectValue = matchedModel ? matchedModel : 'Other';
+
+                              return (
+                                <>
+                                  {curatedModels.length > 0 ? (
+                                    <select
+                                      className="pm-input"
+                                      value={selectValue}
+                                      onChange={e => {
+                                        if (e.target.value === 'Other') {
+                                          handleVehicleChange(index, 'model', 'Other');
+                                        } else {
+                                          handleVehicleChange(index, 'model', e.target.value);
+                                        }
+                                      }}
+                                    >
+                                      {curatedModels.map(m => (
+                                        <option key={m} value={m}>{m}</option>
+                                      ))}
+                                      <option value="Other">Other / Custom Model...</option>
+                                    </select>
+                                  ) : null}
+
+                                  {(curatedModels.length === 0 || selectValue === 'Other') && (
+                                    <input
+                                      type="text"
+                                      className="pm-input"
+                                      style={{ marginTop: curatedModels.length > 0 ? 6 : 0 }}
+                                      placeholder="Enter model name..."
+                                      value={v.model === 'Other' ? '' : v.model}
+                                      onChange={e => handleVehicleChange(index, 'model', e.target.value)}
+                                      required
+                                    />
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+
+                          <div>
+                            <label className="pm-form-label">Year of Manufacture</label>
+                            <input
+                              type="number"
+                              className="pm-input"
+                              placeholder="e.g. 2023"
+                              value={v.year || 2023}
+                              onChange={e => handleVehicleChange(index, 'year', parseInt(e.target.value, 10) || 2023)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="pm-form-label">Seating Capacity</label>
+                            <input
+                              type="number"
+                              className="pm-input"
+                              placeholder="e.g. 15"
+                              value={v.seats || 15}
+                              onChange={e => handleVehicleChange(index, 'seats', parseInt(e.target.value, 10) || 1)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="pm-form-label">Fuel Type</label>
+                            <select
+                              className="pm-input"
+                              value={v.fuel_type || 'diesel'}
+                              onChange={e => handleVehicleChange(index, 'fuel_type', e.target.value)}
+                            >
+                              <option value="diesel">Diesel</option>
+                              <option value="petrol">Petrol</option>
+                              <option value="lpg">LPG (Gas)</option>
+                              <option value="electric">Electric</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="pm-form-label">Initial Odometer (km)</label>
+                            <input
+                              type="number"
+                              className="pm-input"
+                              placeholder="e.g. 0"
+                              value={v.odometer_km ?? 0}
+                              onChange={e => handleVehicleChange(index, 'odometer_km', parseInt(e.target.value, 10) || 0)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="pm-form-label">Vehicle Colour</label>
+                            <input
+                              type="text"
+                              className="pm-input"
+                              placeholder="e.g. White, Yellow / Ash"
+                              value={v.colour || ''}
+                              onChange={e => handleVehicleChange(index, 'colour', e.target.value)}
+                            />
+                          </div>
                         </div>
+                      </div>
+
+                      {/* 3. Current Assignment */}
+                      <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid var(--pm-border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', fontWeight: 700, color: 'var(--pm-text)' }}>
+                            <UserCheck size={15} style={{ color: 'var(--pm-blue-600)' }} />
+                            Current Assignment
+                          </div>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.8125rem', cursor: 'pointer', userSelect: 'none', fontWeight: 500 }}>
+                            <input
+                              type="checkbox"
+                              checked={v.assigned}
+                              onChange={e => handleVehicleChange(index, 'assigned', e.target.checked)}
+                              style={{ width: 15, height: 15, accentColor: 'var(--pm-blue-600)' }}
+                            />
+                            <span>Assign a driver to this vehicle</span>
+                          </label>
+                        </div>
+
+                        {v.assigned ? (
+                          <div className="pm-onboarding-vehicle-grid">
+                            <div>
+                              <label className="pm-form-label">Driver Full Name *</label>
+                              <div style={{ position: 'relative' }}>
+                                <User size={15} style={{
+                                  position: 'absolute', left: 12, top: '50%',
+                                  transform: 'translateY(-50%)', color: 'var(--pm-text-muted)'
+                                }} />
+                                <input
+                                  type="text"
+                                  className="pm-input"
+                                  style={{ paddingLeft: 36 }}
+                                  placeholder="e.g. Kofi Mensah"
+                                  value={v.driver_name || ''}
+                                  onChange={e => handleVehicleChange(index, 'driver_name', e.target.value)}
+                                  required={v.assigned}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="pm-form-label">Driver Phone Number</label>
+                              <div style={{ position: 'relative' }}>
+                                <Phone size={15} style={{
+                                  position: 'absolute', left: 12, top: '50%',
+                                  transform: 'translateY(-50%)', color: 'var(--pm-text-muted)'
+                                }} />
+                                <input
+                                  type="tel"
+                                  className="pm-input"
+                                  style={{ paddingLeft: 36 }}
+                                  placeholder="e.g. 024 123 4567"
+                                  value={v.driver_phone || ''}
+                                  onChange={e => handleVehicleChange(index, 'driver_phone', e.target.value)}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="pm-form-label">Daily Target (GH₵ / day)</label>
+                              <div style={{ position: 'relative' }}>
+                                <Banknote size={15} style={{
+                                  position: 'absolute', left: 12, top: '50%',
+                                  transform: 'translateY(-50%)', color: 'var(--pm-text-muted)'
+                                }} />
+                                <input
+                                  type="number"
+                                  className="pm-input"
+                                  style={{ paddingLeft: 36 }}
+                                  placeholder="e.g. 350"
+                                  value={v.daily_target_cedis ?? 350}
+                                  onChange={e => handleVehicleChange(index, 'daily_target_cedis', parseFloat(e.target.value) || 0)}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{
+                            padding: '10px 14px',
+                            background: 'var(--pm-bg-subtle)',
+                            borderRadius: 'var(--pm-radius-md)',
+                            fontSize: '0.8125rem',
+                            color: 'var(--pm-text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}>
+                            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#94a3b8' }} />
+                            <span>This vehicle will be registered on <strong>Standby / Unassigned</strong>. You can assign a driver at any time.</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))

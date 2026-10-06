@@ -311,6 +311,51 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="pm-bottom-nav" aria-label="Mobile Bottom Navigation">
+        <Link
+          href="/dashboard"
+          className={`pm-bottom-nav-item ${pathname === '/dashboard' ? 'active' : ''}`}
+        >
+          <LayoutDashboard size={20} />
+          <span>Dashboard</span>
+        </Link>
+
+        <Link
+          href="/vehicles"
+          className={`pm-bottom-nav-item ${pathname.startsWith('/vehicles') ? 'active' : ''}`}
+        >
+          <Car size={20} />
+          <span>Vehicles</span>
+        </Link>
+
+        <Link
+          href="/live-map"
+          className={`pm-bottom-nav-item ${pathname === '/live-map' ? 'active' : ''}`}
+        >
+          <Navigation size={20} />
+          <span>Live Map</span>
+        </Link>
+
+        <Link
+          href="/maintenance"
+          className={`pm-bottom-nav-item ${pathname.startsWith('/maintenance') ? 'active' : ''}`}
+        >
+          <Wrench size={20} />
+          <span>Service</span>
+        </Link>
+
+        <button
+          type="button"
+          className={`pm-bottom-nav-item ${sidebarOpen ? 'active' : ''}`}
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open full menu"
+        >
+          <Menu size={20} />
+          <span>Menu</span>
+        </button>
+      </nav>
+
       {/* Click outside to close profile */}
       {profileOpen && (
         <div

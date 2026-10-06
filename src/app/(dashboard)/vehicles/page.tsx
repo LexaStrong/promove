@@ -185,7 +185,7 @@ export default function VehiclesPage() {
           <h1 className="pm-page-title">Vehicles</h1>
           <p className="pm-page-subtitle">{statusCounts.all} vehicles in your fleet</p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--pm-space-3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--pm-space-2)', flexWrap: 'wrap' }}>
           <button className="pm-btn pm-btn-secondary" onClick={() => { setShowBulkModal(true); setHasParsed(false); }}>
             <Upload size={16} /> Bulk Add
           </button>
@@ -221,8 +221,8 @@ export default function VehiclesPage() {
       </div>
 
       {/* Filters */}
-      <div style={{ display: 'flex', gap: 'var(--pm-space-3)', marginBottom: 'var(--pm-space-4)' }}>
-        <div style={{ position: 'relative', flex: 1, maxWidth: 320 }}>
+      <div style={{ display: 'flex', gap: 'var(--pm-space-3)', marginBottom: 'var(--pm-space-4)', flexWrap: 'wrap' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 360 }}>
           <Search size={16} style={{
             position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
             color: 'var(--pm-text-muted)', pointerEvents: 'none',
@@ -233,14 +233,14 @@ export default function VehiclesPage() {
             placeholder="Search by plate, make, model..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{ paddingLeft: 36 }}
+            style={{ paddingLeft: 36, width: '100%' }}
           />
         </div>
         <select
           className="pm-select"
           value={typeFilter}
           onChange={e => setTypeFilter(e.target.value as VehicleType | '')}
-          style={{ width: 160 }}
+          style={{ width: 'auto', minWidth: 140 }}
         >
           <option value="">All types</option>
           <option value="trotro">Trotro</option>
@@ -254,7 +254,8 @@ export default function VehiclesPage() {
 
       {/* Table */}
       <div className="pm-table-wrapper">
-        <table className="pm-table">
+        {/* Desktop View: Full roster columns */}
+        <table className="pm-table pm-desktop-vehicle-table">
           <thead>
             <tr>
               <th>Plate Number</th>
@@ -264,8 +265,6 @@ export default function VehiclesPage() {
               <th>Status</th>
               <th>Fuel</th>
               <th style={{ textAlign: 'right' }}>Odometer</th>
-              {/* Daily Target column commented out per requirement */}
-              {/* <th style={{ textAlign: 'right' }}>Daily Target</th> */}
             </tr>
           </thead>
           <tbody>
@@ -311,14 +310,43 @@ export default function VehiclesPage() {
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {v.odometer_km.toLocaleString()} km
                 </td>
-                {/* Daily Target cell commented out per requirement */}
-                {/*
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {v.daily_target_pesewas
-                    ? `GH₵ ${(v.daily_target_pesewas / 100).toFixed(0)}`
-                    : '-'}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Mobile View: Strictly in order: Vehicle, Plate, and Status */}
+        <table className="pm-table pm-mobile-vehicle-table">
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Plate</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(v => (
+              <tr key={v.id}>
+                <td>
+                  <Link href={`/vehicles/${v.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--pm-text)', fontSize: '0.875rem' }}>
+                      {v.make} {v.model}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)', textTransform: 'capitalize', marginTop: 2 }}>
+                      {v.year ? `${v.year} • ` : ''}{v.vehicle_type}
+                    </div>
+                  </Link>
                 </td>
-                */}
+                <td>
+                  <Link href={`/vehicles/${v.id}`} style={{ fontWeight: 600, color: 'var(--pm-blue-600)', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
+                    {v.plate_number}
+                  </Link>
+                </td>
+                <td>
+                  <span className={`pm-badge pm-badge-${v.status}`} style={{ fontSize: '0.6875rem' }}>
+                    {v.status}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

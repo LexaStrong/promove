@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server';
 import { telemetryHub } from '@/lib/gps/telemetry-hub';
+import {
+  isValidLatitude,
+  isValidLongitude,
+  isValidSpeedKmh,
+  sanitizePlateNumber,
+  sanitizePlainText,
+} from '@/lib/security';
 
 /**
  * In-App High-Accuracy Background GPS Receiver
  * Streams live coordinates from ProMove driver phone / browser into the fleet map
+ * Validates all inputs to block injection and corrupt spatial data
  */
 export async function POST(req: Request) {
   try {
@@ -21,21 +29,32 @@ export async function POST(req: Request) {
       ignition,
     } = body;
 
-    if (latitude === undefined || longitude === undefined) {
-      return NextResponse.json({ error: 'Latitude and longitude are required.' }, { status: 400 });
+    // Strict Input Validation
+    if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) {
+      return NextResponse.json(
+        { error: 'Invalid geographic coordinates. Latitude must be [-90, 90], Longitude must be [-180, 180].' },
+        { status: 400 }
+      );
     }
 
+    const cleanLat = Number(latitude);
+    const cleanLng = Number(longitude);
+    const cleanSpeed = isValidSpeedKmh(speedKmh) ? Number(speedKmh) : 0;
+    const cleanVehicleId = sanitizePlainText(vehicleId, 64) || 'in-app-vehicle';
+    const cleanPlate = sanitizePlateNumber(plateNumber) || 'Live Mobile GPS';
+    const cleanDriver = sanitizePlainText(driverName, 100) || 'Driver (Mobile PWA)';
+
     const result = telemetryHub.ingest({
-      vehicleId: vehicleId || 'in-app-vehicle',
-      plateNumber: plateNumber || 'Live Mobile GPS',
-      driverName: driverName || 'Driver (Mobile PWA)',
-      latitude: Number(latitude),
-      longitude: Number(longitude),
-      altitudeMeters: altitudeMeters ? Number(altitudeMeters) : undefined,
-      speedKmh: Number(speedKmh || 0),
-      courseHeading: courseHeading !== null && courseHeading !== undefined ? Number(courseHeading) : undefined,
-      batteryPercentage: batteryPercentage ? Number(batteryPercentage) : undefined,
-      ignition: ignition !== undefined ? Boolean(ignition) : Number(speedKmh || 0) > 0,
+      vehicleId: cleanVehicleId,
+      plateNumber: cleanPlate,
+      driverName: cleanDriver,
+      latitude: cleanLat,
+      longitude: cleanLng,
+      altitudeMeters: typeof altitudeMeters === 'number' && !isNaN(altitudeMeters) ? Number(altitudeMeters) : undefined,
+      speedKmh: cleanSpeed,
+      courseHeading: typeof courseHeading === 'number' && !isNaN(courseHeading) ? Number(courseHeading) : undefined,
+      batteryPercentage: typeof batteryPercentage === 'number' && batteryPercentage >= 0 && batteryPercentage <= 100 ? Number(batteryPercentage) : undefined,
+      ignition: ignition !== undefined ? Boolean(ignition) : cleanSpeed > 0,
       source: 'in_app_sender',
       timestamp: new Date().toISOString(),
     });

@@ -43,14 +43,15 @@ export function writeFleetWorkspace(
   userId: string | null | undefined,
   fleetInfo: unknown,
   vehicles: unknown[] = [],
+  drivers: unknown[] = [],
 ): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(fleetKey(FLEET_STORAGE_BASE.FLEET_INFO, userId), JSON.stringify(fleetInfo));
     localStorage.setItem(fleetKey(FLEET_STORAGE_BASE.VEHICLES, userId), JSON.stringify(vehicles));
+    localStorage.setItem(fleetKey(FLEET_STORAGE_BASE.DRIVERS, userId), JSON.stringify(drivers));
     (
       [
-        FLEET_STORAGE_BASE.DRIVERS,
         FLEET_STORAGE_BASE.LEDGER,
         FLEET_STORAGE_BASE.MAINTENANCE,
         FLEET_STORAGE_BASE.DOCUMENTS,
