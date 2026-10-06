@@ -4,7 +4,13 @@ import { checkDatabaseConnection } from '@/lib/db';
 import { storageProvider } from '@/lib/storage';
 
 export async function GET() {
-  const clerkAuth = await auth();
+  let userId: string | null = null;
+  try {
+    const clerkAuth = await auth();
+    userId = clerkAuth.userId || null;
+  } catch {
+    // Graceful fallback if Clerk credentials not yet provisioned
+  }
   const dbStatus = await checkDatabaseConnection();
 
   return NextResponse.json({
@@ -13,8 +19,8 @@ export async function GET() {
     services: {
       authentication: {
         provider: 'Clerk',
-        userId: clerkAuth.userId || null,
-        isAuthenticated: !!clerkAuth.userId,
+        userId,
+        isAuthenticated: !!userId,
       },
       database: {
         provider: 'Neon Lakebase Postgres',

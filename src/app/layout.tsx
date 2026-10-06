@@ -52,6 +52,10 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
+const clerkPublishableKey =
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ||
+  'pk_test_dmlhYmxlLWdyaWZmb24tNTU1OS5jbGVyay5hY2NvdW50cy5kZXYk';
+
 export default function RootLayout({
   children,
 }: {
@@ -60,7 +64,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ClerkProvider>
+        <ClerkProvider publishableKey={clerkPublishableKey}>
           <AuthProvider>
             <FleetProvider>
               {children}
