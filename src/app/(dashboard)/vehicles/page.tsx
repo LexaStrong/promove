@@ -3,11 +3,16 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Filter, Car, Upload, CheckCircle2, AlertCircle, FileSpreadsheet } from 'lucide-react';
-import { mockVehicles } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 import { Vehicle, VehicleStatus, VehicleType, FuelType } from '@/lib/types';
+import {
+  getCuratedMakes,
+  getCuratedModels,
+  DEFAULT_VEHICLE_PRESETS,
+} from '@/lib/vehicle-catalog';
 
 export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>(mockVehicles);
+  const { vehicles, addVehicle, isDemo } = useFleet();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<VehicleStatus | ''>('');
   const [typeFilter, setTypeFilter] = useState<VehicleType | ''>('');
@@ -17,8 +22,8 @@ export default function VehiclesPage() {
   // New vehicle form state
   const [newVehicle, setNewVehicle] = useState({
     plate_number: '',
-    make: '',
-    model: '',
+    make: DEFAULT_VEHICLE_PRESETS.trotro.make,
+    model: DEFAULT_VEHICLE_PRESETS.trotro.model,
     year: 2026,
     vehicle_type: 'trotro' as VehicleType,
     fuel_type: 'diesel' as FuelType,
@@ -103,27 +108,22 @@ export default function VehiclesPage() {
     const validOnes = parsedRows.filter(r => r.isValid);
     if (validOnes.length === 0) return;
 
-    const newVehiclesList: Vehicle[] = validOnes.map(r => ({
-      id: `veh-${Date.now()}-${r.rowNumber}`,
-      org_id: 'org-demo',
-      plate_number: r.plate,
-      make: r.make,
-      model: r.model,
-      year: r.year,
-      vehicle_type: r.type,
-      colour: 'White',
-      vin: null,
-      seats: r.seats,
-      fuel_type: r.fuel,
-      status: 'active',
-      odometer_km: r.odometer,
-      daily_target_pesewas: 35000,
-      gps_device_id: null,
-      archived_at: null,
-      created_at: new Date().toISOString(),
-    }));
+    validOnes.forEach(r => {
+      addVehicle({
+        plate_number: r.plate,
+        make: r.make,
+        model: r.model,
+        year: r.year,
+        vehicle_type: r.type,
+        colour: 'White',
+        seats: r.seats,
+        fuel_type: r.fuel,
+        status: 'active',
+        odometer_km: r.odometer,
+        daily_target_pesewas: 35000,
+      });
+    });
 
-    setVehicles(prev => [...newVehiclesList, ...prev]);
     setShowBulkModal(false);
     setHasParsed(false);
     setParsedRows([]);
@@ -133,27 +133,20 @@ export default function VehiclesPage() {
     e.preventDefault();
     if (!newVehicle.plate_number || !newVehicle.make || !newVehicle.model) return;
 
-    const created: Vehicle = {
-      id: `veh-${Date.now()}`,
-      org_id: 'org-demo',
+    addVehicle({
       plate_number: newVehicle.plate_number.toUpperCase(),
       make: newVehicle.make,
       model: newVehicle.model,
       year: Number(newVehicle.year),
       vehicle_type: newVehicle.vehicle_type,
       colour: newVehicle.colour,
-      vin: null,
       seats: Number(newVehicle.seats),
       fuel_type: newVehicle.fuel_type,
       status: 'active',
       odometer_km: Number(newVehicle.odometer_km),
       daily_target_pesewas: Number(newVehicle.daily_target) * 100,
-      gps_device_id: null,
-      archived_at: null,
-      created_at: new Date().toISOString(),
-    };
+    });
 
-    setVehicles(prev => [created, ...prev]);
     setShowAddModal(false);
     setNewVehicle({
       plate_number: '',
@@ -271,7 +264,8 @@ export default function VehiclesPage() {
               <th>Status</th>
               <th>Fuel</th>
               <th style={{ textAlign: 'right' }}>Odometer</th>
-              <th style={{ textAlign: 'right' }}>Daily Target</th>
+              {/* Daily Target column commented out per requirement */}
+              {/* <th style={{ textAlign: 'right' }}>Daily Target</th> */}
             </tr>
           </thead>
           <tbody>
@@ -317,11 +311,14 @@ export default function VehiclesPage() {
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {v.odometer_km.toLocaleString()} km
                 </td>
+                {/* Daily Target cell commented out per requirement */}
+                {/*
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                   {v.daily_target_pesewas
                     ? `GH₵ ${(v.daily_target_pesewas / 100).toFixed(0)}`
                     : '-'}
                 </td>
+                */}
               </tr>
             ))}
           </tbody>
@@ -351,39 +348,136 @@ export default function VehiclesPage() {
               </div>
               <div className="pm-modal-body">
                 <div className="pm-form-group">
-                  <div className="pm-input-group">
-                    <label className="pm-label">Plate Number *</label>
-                    <input
-                      type="text"
-                      className="pm-input"
-                      placeholder="e.g. GR 1234-24"
-                      value={newVehicle.plate_number}
-                      onChange={e => setNewVehicle({ ...newVehicle, plate_number: e.target.value })}
-                      required
-                    />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Vehicle Type *</label>
+                      <select
+                        className="pm-select"
+                        value={newVehicle.vehicle_type}
+                        onChange={e => {
+                          const vType = e.target.value as VehicleType;
+                          const preset = DEFAULT_VEHICLE_PRESETS[vType] || DEFAULT_VEHICLE_PRESETS.trotro;
+                          setNewVehicle({
+                            ...newVehicle,
+                            vehicle_type: vType,
+                            make: preset.make,
+                            model: preset.model,
+                            seats: vType === 'trotro' ? 15 : vType === 'taxi' ? 4 : vType === 'bus' ? 32 : 3,
+                          });
+                        }}
+                      >
+                        <option value="trotro">Trotro (Minibus)</option>
+                        <option value="taxi">Taxi (Cab / Saloon)</option>
+                        <option value="bus">Intercity Bus / Coach</option>
+                        <option value="truck">Haulage Truck / Tipper</option>
+                        <option value="pickup">Pick-up Truck</option>
+                        <option value="other">Other Commercial</option>
+                      </select>
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Plate Number *</label>
+                      <input
+                        type="text"
+                        className="pm-input"
+                        placeholder="e.g. GR 1234-24"
+                        value={newVehicle.plate_number}
+                        onChange={e => setNewVehicle({ ...newVehicle, plate_number: e.target.value.toUpperCase() })}
+                        required
+                      />
+                    </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
                     <div className="pm-input-group">
                       <label className="pm-label">Make *</label>
-                      <input
-                        type="text"
-                        className="pm-input"
-                        placeholder="e.g. Toyota"
-                        value={newVehicle.make}
-                        onChange={e => setNewVehicle({ ...newVehicle, make: e.target.value })}
-                        required
-                      />
+                      {(() => {
+                        const curatedMakes = getCuratedMakes(newVehicle.vehicle_type);
+                        const isCurated = curatedMakes.includes(newVehicle.make);
+                        const selectVal = isCurated ? newVehicle.make : 'Other';
+
+                        return (
+                          <>
+                            <select
+                              className="pm-select"
+                              value={selectVal}
+                              onChange={e => {
+                                const newMake = e.target.value;
+                                if (newMake === 'Other') {
+                                  setNewVehicle({ ...newVehicle, make: 'Other', model: 'Other' });
+                                } else {
+                                  const models = getCuratedModels(newMake, newVehicle.vehicle_type);
+                                  setNewVehicle({
+                                    ...newVehicle,
+                                    make: newMake,
+                                    model: models[0] || '',
+                                  });
+                                }
+                              }}
+                            >
+                              {curatedMakes.map(m => (
+                                <option key={m} value={m}>{m}</option>
+                              ))}
+                              <option value="Other">Other / Custom Make...</option>
+                            </select>
+                            {selectVal === 'Other' && (
+                              <input
+                                type="text"
+                                className="pm-input"
+                                style={{ marginTop: 6 }}
+                                placeholder="Enter custom make..."
+                                value={newVehicle.make === 'Other' ? '' : newVehicle.make}
+                                onChange={e => setNewVehicle({ ...newVehicle, make: e.target.value })}
+                                required
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                     <div className="pm-input-group">
                       <label className="pm-label">Model *</label>
-                      <input
-                        type="text"
-                        className="pm-input"
-                        placeholder="e.g. HiAce"
-                        value={newVehicle.model}
-                        onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })}
-                        required
-                      />
+                      {(() => {
+                        const curatedModels = getCuratedModels(newVehicle.make, newVehicle.vehicle_type);
+                        const exactMatch = curatedModels.find(m => m === newVehicle.model);
+                        const fuzzyMatch = !exactMatch && newVehicle.model && newVehicle.model !== 'Other'
+                          ? curatedModels.find(m => m.toLowerCase().startsWith(newVehicle.model.toLowerCase()) || m.toLowerCase().includes(newVehicle.model.toLowerCase()))
+                          : null;
+                        const matchedModel = exactMatch || fuzzyMatch;
+                        const selectVal = matchedModel ? matchedModel : 'Other';
+
+                        return (
+                          <>
+                            {curatedModels.length > 0 ? (
+                              <select
+                                className="pm-select"
+                                value={selectVal}
+                                onChange={e => {
+                                  if (e.target.value === 'Other') {
+                                    setNewVehicle({ ...newVehicle, model: 'Other' });
+                                  } else {
+                                    setNewVehicle({ ...newVehicle, model: e.target.value });
+                                  }
+                                }}
+                              >
+                                {curatedModels.map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                                <option value="Other">Other / Custom Model...</option>
+                              </select>
+                            ) : null}
+                            {(curatedModels.length === 0 || selectVal === 'Other') && (
+                              <input
+                                type="text"
+                                className="pm-input"
+                                style={{ marginTop: curatedModels.length > 0 ? 6 : 0 }}
+                                placeholder="Enter model name..."
+                                value={newVehicle.model === 'Other' ? '' : newVehicle.model}
+                                onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })}
+                                required
+                              />
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
@@ -397,18 +491,16 @@ export default function VehiclesPage() {
                       />
                     </div>
                     <div className="pm-input-group">
-                      <label className="pm-label">Vehicle Type</label>
+                      <label className="pm-label">Fuel Type</label>
                       <select
                         className="pm-select"
-                        value={newVehicle.vehicle_type}
-                        onChange={e => setNewVehicle({ ...newVehicle, vehicle_type: e.target.value as VehicleType })}
+                        value={newVehicle.fuel_type}
+                        onChange={e => setNewVehicle({ ...newVehicle, fuel_type: e.target.value as FuelType })}
                       >
-                        <option value="trotro">Trotro</option>
-                        <option value="taxi">Taxi</option>
-                        <option value="bus">Bus</option>
-                        <option value="truck">Truck</option>
-                        <option value="pickup">Pickup</option>
-                        <option value="other">Other</option>
+                        <option value="diesel">Diesel</option>
+                        <option value="petrol">Petrol</option>
+                        <option value="lpg">LPG</option>
+                        <option value="electric">Electric</option>
                       </select>
                     </div>
                   </div>
@@ -456,6 +548,8 @@ export default function VehiclesPage() {
                       />
                     </div>
                   </div>
+                  {/* Daily Sales Target input commented out per requirement */}
+                  {/*
                   <div className="pm-input-group">
                     <label className="pm-label">Daily Sales Target (GH₵)</label>
                     <input
@@ -465,6 +559,7 @@ export default function VehiclesPage() {
                       onChange={e => setNewVehicle({ ...newVehicle, daily_target: parseInt(e.target.value, 10) || 0 })}
                     />
                   </div>
+                  */}
                 </div>
               </div>
               <div className="pm-modal-footer">

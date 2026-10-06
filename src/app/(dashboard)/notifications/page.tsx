@@ -4,21 +4,19 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   Bell, FileText, Wrench, AlertTriangle, CheckCheck,
-  Calendar, CheckCircle2, Sliders, Smartphone, ShieldCheck
+  CheckCircle2
 } from 'lucide-react';
-import { mockNotifications } from '@/lib/mock-data';
 import { NotifType, Notification } from '@/lib/types';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const { notifications: fleetNotifs } = useFleet();
+  const [notifications, setNotifications] = useState<Notification[]>(fleetNotifs);
+
+  React.useEffect(() => {
+    setNotifications(fleetNotifs);
+  }, [fleetNotifs]);
   const [filterType, setFilterType] = useState<'all' | 'unread' | NotifType>('all');
-  const [prefSms, setPrefSms] = useState(true);
-  const [prefInApp, setPrefInApp] = useState(true);
-  const [pref30Days, setPref30Days] = useState(true);
-  const [pref14Days, setPref14Days] = useState(true);
-  const [pref7Days, setPref7Days] = useState(true);
-  const [prefDailySummary, setPrefDailySummary] = useState(true);
-  const [savedPrefs, setSavedPrefs] = useState(false);
 
   const markAllAsRead = () => {
     setNotifications(prev =>
@@ -39,12 +37,6 @@ export default function NotificationsPage() {
   });
 
   const unreadCount = notifications.filter(n => n.status !== 'read').length;
-
-  const handleSavePreferences = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSavedPrefs(true);
-    setTimeout(() => setSavedPrefs(false), 3000);
-  };
 
   const getNotifDetails = (n: Notification) => {
     switch (n.notif_type) {
@@ -131,11 +123,9 @@ export default function NotificationsPage() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 'var(--pm-space-6)', alignItems: 'start' }}>
-        {/* Left Column: Notification Feed */}
-        <div>
-          {/* Filters */}
-          <div className="pm-tabs" style={{ marginBottom: 'var(--pm-space-4)' }}>
+      <div className="pm-notifications-layout">
+        {/* Filters */}
+        <div className="pm-tabs" style={{ marginBottom: 'var(--pm-space-4)' }}>
             <button
               className={`pm-tab ${filterType === 'all' ? 'active' : ''}`}
               onClick={() => setFilterType('all')}
@@ -193,7 +183,7 @@ export default function NotificationsPage() {
                 return (
                   <div
                     key={n.id}
-                    className="pm-card"
+                    className="pm-card pm-notif-card"
                     style={{
                       padding: 'var(--pm-space-4) var(--pm-space-5)',
                       display: 'flex',
@@ -222,7 +212,7 @@ export default function NotificationsPage() {
                     </div>
 
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div className="pm-notif-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                         <div style={{ fontWeight: isUnread ? 600 : 500, fontSize: '0.9375rem', color: 'var(--pm-text)' }}>
                           {details.title}
                         </div>
@@ -231,11 +221,11 @@ export default function NotificationsPage() {
                         </span>
                       </div>
 
-                      <p style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)', marginTop: 4, lineHeight: 1.4 }}>
+                      <p style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)', marginTop: 4, lineHeight: 1.4, wordBreak: 'break-word' }}>
                         {details.description}
                       </p>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
                         <Link
                           href={details.link}
                           className="pm-btn pm-btn-secondary pm-btn-sm"
@@ -260,123 +250,6 @@ export default function NotificationsPage() {
               })}
             </div>
           )}
-        </div>
-
-        {/* Right Column: Alert Delivery & Channel Preferences */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-6)' }}>
-          <div className="pm-card" style={{ padding: 'var(--pm-space-5)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 'var(--pm-space-4)' }}>
-              <Sliders size={18} style={{ color: 'var(--pm-blue-600)' }} />
-              <h3 style={{ fontSize: '1rem' }}>Alert Preferences</h3>
-            </div>
-
-            {savedPrefs && (
-              <div style={{
-                background: 'var(--pm-success-light)',
-                border: '1px solid var(--pm-success)',
-                color: 'var(--pm-success)',
-                borderRadius: 'var(--pm-radius-md)',
-                padding: 'var(--pm-space-2) var(--pm-space-3)',
-                marginBottom: 'var(--pm-space-4)',
-                fontSize: '0.8125rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6
-              }}>
-                <CheckCircle2 size={14} />
-                Preferences saved.
-              </div>
-            )}
-
-            <form onSubmit={handleSavePreferences} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-              <div>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: 8, color: 'var(--pm-text)' }}>
-                  Delivery Channels
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={prefInApp}
-                      onChange={e => setPrefInApp(e.target.checked)}
-                    />
-                    <span>In-App Notifications</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={prefSms}
-                      onChange={e => setPrefSms(e.target.checked)}
-                    />
-                    <span>SMS Alerts (Hubtel Ghana Gateway)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--pm-border)', paddingTop: 'var(--pm-space-4)' }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: 8, color: 'var(--pm-text)' }}>
-                  Document Expiry Thresholds
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={pref30Days}
-                      onChange={e => setPref30Days(e.target.checked)}
-                    />
-                    <span>30 days before expiry</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={pref14Days}
-                      onChange={e => setPref14Days(e.target.checked)}
-                    />
-                    <span>14 days before expiry</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={pref7Days}
-                      onChange={e => setPref7Days(e.target.checked)}
-                    />
-                    <span>7 days before expiry (Urgent)</span>
-                  </label>
-                </div>
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--pm-border)', paddingTop: 'var(--pm-space-4)' }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, marginBottom: 8, color: 'var(--pm-text)' }}>
-                  Automated Daily Summary
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.8125rem', cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={prefDailySummary}
-                    onChange={e => setPrefDailySummary(e.target.checked)}
-                  />
-                  <span>SMS Daily Totals to Owner at 20:00 GMT</span>
-                </label>
-              </div>
-
-              <button type="submit" className="pm-btn pm-btn-primary pm-btn-sm" style={{ marginTop: 'var(--pm-space-2)' }}>
-                Save Preferences
-              </button>
-            </form>
-          </div>
-
-          <div className="pm-card" style={{ padding: 'var(--pm-space-5)', background: 'var(--pm-bg-subtle)' }}>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <Smartphone size={20} style={{ color: 'var(--pm-blue-600)', flexShrink: 0 }} />
-              <div>
-                <h4 style={{ fontSize: '0.875rem', marginBottom: 4 }}>Ghana SMS Delivery</h4>
-                <p style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)', lineHeight: 1.4 }}>
-                  SMS reminders are transmitted via local Ghana aggregators directly to MTN, Telecel, and AT numbers.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

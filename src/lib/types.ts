@@ -302,6 +302,14 @@ export function formatPesewasShort(pesewas: number): string {
   return `GH₵ ${cedis.toLocaleString('en-GH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
+export function cedisToPesewas(cedis: number): number {
+  return Math.round(cedis * 100);
+}
+
+export function pesewasToCedis(pesewas: number): number {
+  return pesewas / 100;
+}
+
 export function statusLabel(status: string): string {
   return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

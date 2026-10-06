@@ -1,23 +1,28 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Search, Users, Phone, Shield } from 'lucide-react';
-import { mockDrivers, mockAssignments } from '@/lib/mock-data';
+import { mockAssignments } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 import { Driver, DriverRoleType, DriverStatus } from '@/lib/types';
 import { Lock, ShieldCheck } from 'lucide-react';
 
+const CURRENT_DATE_MS = new Date('2026-10-01T00:00:00Z').getTime();
+const NINETY_DAYS_MS = 90 * 86400000;
+
+function isLicenceExpiringSoon(licenceExpiry: string | null): boolean {
+  if (!licenceExpiry) return false;
+  const expiry = new Date(licenceExpiry).getTime();
+  return expiry - CURRENT_DATE_MS < NINETY_DAYS_MS && expiry > CURRENT_DATE_MS;
+}
+
 export default function DriversPage() {
-  const [drivers, setDrivers] = useState<Driver[]>(mockDrivers);
+  const { drivers, addDriver, isDemo } = useFleet();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<DriverStatus | ''>('');
   const [roleFilter, setRoleFilter] = useState<DriverRoleType | ''>('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [expiryCutoff, setExpiryCutoff] = useState<Date | null>(null);
-
-  useEffect(() => {
-    setExpiryCutoff(new Date(Date.now() + 90 * 86400000));
-  }, []);
 
   // New driver form state
   const [newDriver, setNewDriver] = useState({
@@ -36,26 +41,16 @@ export default function DriversPage() {
     e.preventDefault();
     if (!newDriver.full_name || !newDriver.phone) return;
 
-    const created: Driver = {
-      id: `drv-${Date.now()}`,
-      org_id: 'org-demo',
-      user_id: null,
+    addDriver({
       full_name: newDriver.full_name,
       phone: newDriver.phone,
       role_type: newDriver.role_type,
-      licence_number_enc: newDriver.licence_number ? `enc_aes_${Buffer.from(newDriver.licence_number).toString('base64').slice(0, 10)}` : null,
-      licence_class: newDriver.licence_class || null,
-      licence_expiry: newDriver.licence_expiry || null,
+      licence_number_enc: newDriver.licence_number,
+      licence_class: newDriver.licence_class,
+      licence_expiry: newDriver.licence_expiry,
       status: 'active',
-      emergency_contact: newDriver.emergency_contact || null,
-      sms_consent_given: newDriver.sms_consent_given,
-      sms_consent_at: newDriver.sms_consent_given ? new Date().toISOString() : null,
-      location_consent_given: newDriver.location_consent_given,
-      location_consent_at: newDriver.location_consent_given ? new Date().toISOString() : null,
-      archived_at: null,
-    };
+    });
 
-    setDrivers(prev => [created, ...prev]);
     setShowAddModal(false);
     setNewDriver({
       full_name: '',
@@ -79,7 +74,7 @@ export default function DriversPage() {
   });
 
   const getAssignment = (driverId: string) =>
-    mockAssignments.find(a => a.driver_id === driverId && !a.ends_at);
+    isDemo ? mockAssignments.find(a => a.driver_id === driverId && !a.ends_at) : undefined;
 
   return (
     <div>
@@ -209,7 +204,7 @@ export default function DriversPage() {
                         marginTop: 8, fontSize: '0.75rem', color: 'var(--pm-text-muted)',
                       }}>
                         Licence expires: {driver.licence_expiry}
-                        {Boolean(expiryCutoff && driver.licence_expiry && new Date(driver.licence_expiry) < expiryCutoff) && (
+                        {isLicenceExpiringSoon(driver.licence_expiry) && (
                           <span className="pm-badge pm-badge-pending" style={{ marginLeft: 8 }}>
                             Expiring soon
                           </span>

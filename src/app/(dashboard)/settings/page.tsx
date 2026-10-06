@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Building2, Users, Shield, History, Plus,
   Save, CheckCircle2, UserCheck, Lock, Smartphone,
@@ -8,23 +8,47 @@ import {
 } from 'lucide-react';
 import { mockOrg, mockUsers, mockAuditLogs } from '@/lib/mock-data';
 import { Role } from '@/lib/types';
+import { useAuth } from '@/lib/auth-context';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function SettingsPage() {
+  const { user, org } = useAuth();
+  const { isDemo, orgName, setOrgName } = useFleet();
   const [activeTab, setActiveTab] = useState<'org' | 'team' | 'security' | 'audit'>('org');
 
   // Org form state
   const [orgForm, setOrgForm] = useState({
-    name: mockOrg.name,
-    phone: mockOrg.phone,
-    region: mockOrg.region,
-    currency: mockOrg.currency,
-    timezone: mockOrg.timezone,
+    name: isDemo ? mockOrg.name : (orgName || org?.name || 'My Fleet'),
+    phone: isDemo ? mockOrg.phone : (user?.phone || '+233 24 000 0000'),
+    region: isDemo ? mockOrg.region : (org?.region || 'Greater Accra'),
+    currency: isDemo ? mockOrg.currency : (org?.currency || 'GHS'),
+    timezone: isDemo ? mockOrg.timezone : (org?.timezone || 'Africa/Accra'),
   });
   const [orgSaved, setOrgSaved] = useState(false);
 
+  // Sync org form when context loads
+  useEffect(() => {
+    if (!isDemo && orgName) {
+      setOrgForm(prev => ({ ...prev, name: orgName }));
+    }
+  }, [isDemo, orgName]);
+
   // Team invite modal
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [teamMembers, setTeamMembers] = useState(mockUsers);
+  const [teamMembers, setTeamMembers] = useState(() => {
+    if (isDemo) return mockUsers;
+    return [
+      {
+        id: user?.id || 'usr-current',
+        email: user?.email || null,
+        phone: user?.phone || '+233 24 000 0000',
+        full_name: user?.full_name || 'Fleet Administrator',
+        is_platform_admin: false,
+        is_active: true,
+        last_login_at: new Date().toISOString(),
+      },
+    ];
+  });
   const [inviteForm, setInviteForm] = useState({
     full_name: '',
     phone: '+233 ',
@@ -38,6 +62,7 @@ export default function SettingsPage() {
 
   const handleSaveOrg = (e: React.FormEvent) => {
     e.preventDefault();
+    setOrgName(orgForm.name);
     setOrgSaved(true);
     setTimeout(() => setOrgSaved(false), 3000);
   };
@@ -218,10 +243,10 @@ export default function SettingsPage() {
                   Tenant ID
                 </div>
                 <div style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.9375rem', marginTop: 2 }}>
-                  {mockOrg.id}
+                  {isDemo ? mockOrg.id : (org?.id || 'org-active')}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)', marginTop: 8 }}>
-                  Registered on: {new Date(mockOrg.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  Registered on: {new Date(isDemo ? mockOrg.created_at : (org?.created_at || '2026-01-01')).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
               </div>
             </div>
@@ -257,7 +282,7 @@ export default function SettingsPage() {
               <div>
                 <h3 style={{ fontSize: '1.125rem' }}>Authorized Team Members</h3>
                 <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.8125rem', marginTop: 2 }}>
-                  Users authorized to access and operate {mockOrg.name}
+                  Users authorized to access and operate {isDemo ? mockOrg.name : (orgName || org?.name || 'your fleet')}
                 </p>
               </div>
               <button
@@ -469,7 +494,7 @@ export default function SettingsPage() {
               </p>
             </div>
             <span className="pm-badge pm-badge-neutral">
-              {mockAuditLogs.length} events logged
+              {(isDemo ? mockAuditLogs.length : 0)} events logged
             </span>
           </div>
 
@@ -486,36 +511,44 @@ export default function SettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {mockAuditLogs.map(log => (
-                  <tr key={log.id}>
-                    <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
-                      {new Date(log.created_at).toLocaleString('en-GB', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </td>
-                    <td>
-                      <span className="pm-badge pm-badge-info" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                      {log.actor?.full_name || 'System / Platform Admin'}
-                    </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)' }}>
-                      {log.entity_type} ({log.entity_id})
-                    </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
-                      {log.ip_address}
-                    </td>
-                    <td style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.after ? JSON.stringify(log.after) : '-'}
+                {!isDemo ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: 'var(--pm-space-6)', color: 'var(--pm-text-secondary)' }}>
+                      No audit events logged yet. Operations, ledger transactions, and security actions will record here.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  mockAuditLogs.map(log => (
+                    <tr key={log.id}>
+                      <td style={{ fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>
+                        {new Date(log.created_at).toLocaleString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                      <td>
+                        <span className="pm-badge pm-badge-info" style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                          {log.action}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                        {log.actor?.full_name || 'System / Platform Admin'}
+                      </td>
+                      <td style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)' }}>
+                        {log.entity_type} ({log.entity_id})
+                      </td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
+                        {log.ip_address}
+                      </td>
+                      <td style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)', maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {log.after ? JSON.stringify(log.after) : '-'}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

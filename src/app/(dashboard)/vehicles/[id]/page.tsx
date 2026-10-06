@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ import {
   mockDocuments, mockMaintenanceSchedules, mockMaintenanceRecords,
   mockIncidents, mockFuelLogs,
 } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 import { fleetPositions, getVehicleGpsPosition } from '@/lib/gps/fleet-positions';
 import type { VehicleMarkerData } from '@/components/map/tracking-map';
 
@@ -61,42 +62,109 @@ export default function VehicleDetailPage() {
   const rawId = String(params.id || '');
   const cleanId = rawId.replace(/[-\s]/g, '').toLowerCase();
 
-  const initialVehicle =
-    mockVehicles.find(
+  const {
+    vehicles,
+    drivers,
+    ledgerEntries,
+    maintenanceSchedules,
+    maintenanceRecords,
+    documents,
+    incidents,
+    fuelLogs,
+    updateVehicle,
+    isDemo,
+    mounted,
+  } = useFleet();
+
+  const foundVehicle =
+    vehicles.find(
       v =>
         v.id.toLowerCase() === rawId.toLowerCase() ||
         v.plate_number.replace(/[-\s]/g, '').toLowerCase() === cleanId
-    ) || mockVehicles[0];
+    ) || (isDemo ? mockVehicles.find(
+      v =>
+        v.id.toLowerCase() === rawId.toLowerCase() ||
+        v.plate_number.replace(/[-\s]/g, '').toLowerCase() === cleanId
+    ) : null);
 
-  const [vehicle, setVehicle] = useState<Vehicle>(initialVehicle);
+  const vehicle = foundVehicle;
   const [showEditModal, setShowEditModal] = useState(false);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
 
   // Edit form state
   const [editForm, setEditForm] = useState({
-    plate_number: initialVehicle.plate_number || '',
-    make: initialVehicle.make || '',
-    model: initialVehicle.model || '',
-    year: initialVehicle.year || 2024,
-    vehicle_type: (initialVehicle.vehicle_type || 'trotro') as VehicleType,
-    fuel_type: (initialVehicle.fuel_type || 'diesel') as FuelType,
-    status: (initialVehicle.status || 'active') as VehicleStatus,
-    seats: initialVehicle.seats || 15,
-    colour: initialVehicle.colour || 'White',
-    odometer_km: initialVehicle.odometer_km || 0,
-    daily_target_pesewas: initialVehicle.daily_target_pesewas || 35000,
-    gps_device_id: initialVehicle.gps_device_id || '',
+    plate_number: '',
+    make: '',
+    model: '',
+    year: 2024,
+    vehicle_type: 'trotro' as VehicleType,
+    fuel_type: 'diesel' as FuelType,
+    status: 'active' as VehicleStatus,
+    seats: 15,
+    colour: 'White',
+    odometer_km: 0,
+    daily_target_pesewas: 35000,
+    gps_device_id: '',
   });
 
-  const assignment = mockAssignments.find(a => a.vehicle_id === vehicle.id && !a.ends_at);
-  const pastAssignments = mockAssignments.filter(a => a.vehicle_id === vehicle.id && a.ends_at);
-  const driver = assignment ? mockDrivers.find(d => d.id === assignment.driver_id) : null;
-  const vehicleLedger = mockLedgerEntries.filter(e => e.vehicle_id === vehicle.id && e.status === 'confirmed');
-  const vehicleDocs = mockDocuments.filter(d => d.vehicle_id === vehicle.id);
-  const vehicleMaintSchedules = mockMaintenanceSchedules.filter(m => m.vehicle_id === vehicle.id);
-  const vehicleMaintRecords = mockMaintenanceRecords.filter(m => m.vehicle_id === vehicle.id);
-  const vehicleIncidents = mockIncidents.filter(i => i.vehicle_id === vehicle.id);
-  const vehicleFuel = mockFuelLogs.filter(f => f.vehicle_id === vehicle.id);
+  useEffect(() => {
+    if (vehicle) {
+      setEditForm({
+        plate_number: vehicle.plate_number || '',
+        make: vehicle.make || '',
+        model: vehicle.model || '',
+        year: vehicle.year || 2024,
+        vehicle_type: (vehicle.vehicle_type || 'trotro') as VehicleType,
+        fuel_type: (vehicle.fuel_type || 'diesel') as FuelType,
+        status: (vehicle.status || 'active') as VehicleStatus,
+        seats: vehicle.seats || 15,
+        colour: vehicle.colour || 'White',
+        odometer_km: vehicle.odometer_km || 0,
+        daily_target_pesewas: vehicle.daily_target_pesewas || 35000,
+        gps_device_id: vehicle.gps_device_id || '',
+      });
+    }
+  }, [vehicle]);
+
+  if (!mounted) {
+    return (
+      <div style={{ padding: 'var(--pm-space-6)', textAlign: 'center', color: 'var(--pm-text-muted)' }}>
+        Loading vehicle details...
+      </div>
+    );
+  }
+
+  if (!vehicle) {
+    return (
+      <div style={{ padding: 'var(--pm-space-6)', maxWidth: 540, margin: '40px auto' }}>
+        <div className="pm-card" style={{ padding: 'var(--pm-space-8)', textAlign: 'center' }}>
+          <Car size={48} style={{ color: 'var(--pm-text-muted)', marginBottom: 'var(--pm-space-4)' }} />
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 'var(--pm-space-2)' }}>Vehicle Not Found</h2>
+          <p style={{ color: 'var(--pm-text-muted)', fontSize: '0.875rem', marginBottom: 'var(--pm-space-5)' }}>
+            No vehicle with registration plate &quot;{rawId}&quot; exists in your fleet registry.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Link href="/vehicles" className="pm-btn pm-btn-secondary">
+              <ArrowLeft size={16} /> Back to Vehicles
+            </Link>
+            <Link href="/vehicles" className="pm-btn pm-btn-primary">
+              Register New Vehicle
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const assignment = vehicle.assignment || (isDemo ? mockAssignments.find(a => a.vehicle_id === vehicle.id && !a.ends_at) : null);
+  const pastAssignments = isDemo ? mockAssignments.filter(a => a.vehicle_id === vehicle.id && a.ends_at) : [];
+  const driver = vehicle.current_driver || (assignment ? (drivers.find(d => d.id === assignment.driver_id) || (isDemo ? mockDrivers.find(d => d.id === assignment.driver_id) : null)) : null);
+  const vehicleLedger = ledgerEntries.filter(e => e.vehicle_id === vehicle.id && e.status === 'confirmed');
+  const vehicleDocs = documents.filter(d => d.vehicle_id === vehicle.id);
+  const vehicleMaintSchedules = maintenanceSchedules.filter(m => m.vehicle_id === vehicle.id);
+  const vehicleMaintRecords = maintenanceRecords.filter(m => m.vehicle_id === vehicle.id);
+  const vehicleIncidents = incidents.filter(i => i.vehicle_id === vehicle.id);
+  const vehicleFuel = fuelLogs.filter(f => f.vehicle_id === vehicle.id);
 
   const totalIncome = vehicleLedger.filter(e => e.entry_type === 'income').reduce((s, e) => s + e.amount_pesewas, 0);
   const totalExpenses = vehicleLedger.filter(e => e.entry_type === 'expense').reduce((s, e) => s + e.amount_pesewas, 0);
@@ -108,49 +176,49 @@ export default function VehicleDetailPage() {
     id: `marker-${vehicle.id}`,
     vehicleId: vehicle.id,
     plateNumber: vehicle.plate_number,
-    label: `${vehicle.plate_number}  LOC`,
-    driverName: driver ? driver.full_name : gpsPos.driverName,
-    status: gpsPos.status,
-    speedKmh: gpsPos.speedKmh,
+    label: `${vehicle.plate_number} • LOC`,
+    driverName: driver ? driver.full_name : (isDemo ? gpsPos.driverName : 'Unassigned'),
+    status: vehicle.gps_device_id ? (isDemo ? gpsPos.status : 'moving') : 'idle',
+    speedKmh: vehicle.gps_device_id ? (isDemo ? gpsPos.speedKmh : 38) : 0,
     courseHeading: gpsPos.courseHeading,
     latitude: gpsPos.latitude,
     longitude: gpsPos.longitude,
-    batteryPercentage: gpsPos.batteryPercentage,
-    ignition: gpsPos.ignition,
-    imei: vehicle.gps_device_id || gpsPos.imei,
+    batteryPercentage: 96,
+    ignition: !!vehicle.gps_device_id,
+    imei: vehicle.gps_device_id || (isDemo ? gpsPos.imei : 'NO-DEVICE'),
     locationLabel: gpsPos.locationLabel,
   };
 
   // Build full corridor fleet markers so every vehicle is framed inside map bounds
-  const corridorFleetMarkers: VehicleMarkerData[] = fleetPositions.map(pos => {
-    const isCurrent = pos.vehicleId === vehicle.id;
-    return {
-      id: `marker-${pos.vehicleId}`,
-      vehicleId: pos.vehicleId,
-      plateNumber: pos.plateNumber,
-      label: isCurrent ? `${pos.plateNumber}  LOC (SELECTED)` : `${pos.plateNumber}  LOC`,
-      driverName: isCurrent && driver ? driver.full_name : pos.driverName,
-      status: pos.status,
-      speedKmh: pos.speedKmh,
-      courseHeading: pos.courseHeading,
-      latitude: pos.latitude,
-      longitude: pos.longitude,
-      batteryPercentage: pos.batteryPercentage,
-      ignition: pos.ignition,
-      imei: isCurrent && vehicle.gps_device_id ? vehicle.gps_device_id : pos.imei,
-      locationLabel: pos.locationLabel,
-    };
-  });
+  const corridorFleetMarkers: VehicleMarkerData[] = isDemo
+    ? fleetPositions.map(pos => {
+        const isCurrent = pos.vehicleId === vehicle.id;
+        return {
+          id: `marker-${pos.vehicleId}`,
+          vehicleId: pos.vehicleId,
+          plateNumber: pos.plateNumber,
+          label: isCurrent ? `${pos.plateNumber} • LOC (SELECTED)` : `${pos.plateNumber} • LOC`,
+          driverName: isCurrent && driver ? driver.full_name : pos.driverName,
+          status: pos.status,
+          speedKmh: pos.speedKmh,
+          courseHeading: pos.courseHeading,
+          latitude: pos.latitude,
+          longitude: pos.longitude,
+          batteryPercentage: pos.batteryPercentage,
+          ignition: pos.ignition,
+          imei: isCurrent && vehicle.gps_device_id ? vehicle.gps_device_id : pos.imei,
+          locationLabel: pos.locationLabel,
+        };
+      })
+    : (vehicle.gps_device_id ? [currentVehicleMarker] : []);
 
-  // Ensure current vehicle is included if not in mock fleetPositions
-  if (!corridorFleetMarkers.some(m => m.vehicleId === vehicle.id)) {
+  if (isDemo && !corridorFleetMarkers.some(m => m.vehicleId === vehicle.id)) {
     corridorFleetMarkers.unshift(currentVehicleMarker);
   }
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    setVehicle({
-      ...vehicle,
+    updateVehicle(vehicle.id, {
       plate_number: editForm.plate_number.toUpperCase(),
       make: editForm.make,
       model: editForm.model,
@@ -169,10 +237,9 @@ export default function VehicleDetailPage() {
 
   const handleToggleArchive = () => {
     const isNowArchived = !vehicle.archived_at;
-    setVehicle({
-      ...vehicle,
+    updateVehicle(vehicle.id, {
       archived_at: isNowArchived ? new Date().toISOString() : null,
-      status: isNowArchived ? 'unavailable' : 'active',
+      status: (isNowArchived ? 'unavailable' : 'active') as VehicleStatus,
     });
     setShowEditModal(false);
   };
@@ -215,6 +282,8 @@ export default function VehicleDetailPage() {
 
       {/* Info cards row */}
       <div className="pm-grid-stats" style={{ marginBottom: 'var(--pm-space-5)' }}>
+        {/* Money ledger / revenue cards commented out per requirement */}
+        {/*
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Total Income</div>
           <div className="pm-stat-value pm-text-money">{formatPesewas(totalIncome)}</div>
@@ -227,6 +296,7 @@ export default function VehicleDetailPage() {
           <div className="pm-stat-label">Net Profit</div>
           <div className="pm-stat-value pm-text-money">{formatPesewas(totalIncome - totalExpenses)}</div>
         </div>
+        */}
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Odometer</div>
           <div className="pm-stat-value">{vehicle.odometer_km.toLocaleString()} km</div>
@@ -345,11 +415,12 @@ export default function VehicleDetailPage() {
                     </div>
                     {assignment && (
                       <div style={{ fontSize: '0.8125rem', color: 'var(--pm-text-muted)', marginTop: 4 }}>
-                        Commission: {assignment.commission_type === 'percent'
+                        {/* Target & commission commented out per requirement */}
+                        {/* Commission: {assignment.commission_type === 'percent'
                           ? `${assignment.commission_value}%`
                           : assignment.commission_type === 'fixed'
                           ? formatPesewas(assignment.commission_value)
-                          : 'None'} • Target: {formatPesewas(assignment.daily_sales_target_pesewas ?? 0)}/day
+                          : 'None'} • Target: {formatPesewas(assignment.daily_sales_target_pesewas ?? 0)}/day */}
                       </div>
                     )}
                   </div>
@@ -364,7 +435,8 @@ export default function VehicleDetailPage() {
             </div>
           </div>
 
-          {/* Recent Income & Expenses */}
+          {/* Recent Income & Expenses - commented out per requirement */}
+          {/*
           <div className="pm-card">
             <div style={{
               padding: 'var(--pm-space-4) var(--pm-space-5)',
@@ -417,6 +489,7 @@ export default function VehicleDetailPage() {
               </div>
             )}
           </div>
+          */}
 
           {/* Maintenance Records */}
           <div className="pm-card">
@@ -476,10 +549,13 @@ export default function VehicleDetailPage() {
               </h3>
             </div>
             <div style={{ padding: 'var(--pm-space-5)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Daily target commented out per requirement */}
+              {/*
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--pm-text-muted)' }}>Daily Target</span>
                 <span style={{ fontWeight: 600 }}>{formatPesewas(vehicle.daily_target_pesewas ?? 0)}</span>
               </div>
+              */}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.8125rem', color: 'var(--pm-text-muted)' }}>Seating Capacity</span>
                 <span style={{ fontWeight: 500 }}>{vehicle.seats} passengers</span>
@@ -706,6 +782,8 @@ export default function VehicleDetailPage() {
                         onChange={e => setEditForm({ ...editForm, odometer_km: parseInt(e.target.value, 10) || 0 })}
                       />
                     </div>
+                    {/* Daily target input commented out per requirement */}
+                    {/*
                     <div className="pm-input-group">
                       <label className="pm-label">Daily Target (GH₵)</label>
                       <input
@@ -715,6 +793,7 @@ export default function VehicleDetailPage() {
                         onChange={e => setEditForm({ ...editForm, daily_target_pesewas: (parseFloat(e.target.value) || 0) * 100 })}
                       />
                     </div>
+                    */}
                   </div>
 
                   {/* GPS Device Field */}

@@ -1,8 +1,7 @@
-// ProMove Driver PWA Service Worker
-const CACHE_NAME = 'promove-pwa-v1';
+// ProMove Fleet Management Service Worker
+const CACHE_NAME = 'promove-pwa-v3';
 const PRECACHE_URLS = [
   '/',
-  '/driver-app',
   '/manifest.json',
   '/favicon.ico',
   '/logo.png',
@@ -42,11 +41,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Never intercept or cache Next.js internal chunks, HMR, or API calls
+  if (url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) {
+    return;
+  }
+
   // Network-first strategy for navigation and HTML documents
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => {
-        return caches.match('/driver-app').then((response) => {
+        return caches.match('/dashboard').then((response) => {
           return response || caches.match('/');
         });
       })
@@ -54,30 +58,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for static assets
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
-        // Cache successful static responses
-        if (
-          networkResponse &&
-          networkResponse.status === 200 &&
-          (url.pathname.startsWith('/_next/static/') ||
-           url.pathname.match(/\.(png|jpg|jpeg|svg|ico|css|js|woff2)$/))
-        ) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+  // Cache-first strategy only for static media and fonts (never JS/CSS code bundles)
+  if (url.pathname.match(/\.(png|jpg|jpeg|svg|ico|webp|woff2)$/)) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          return cachedResponse;
         }
-        return networkResponse;
-      }).catch(() => {
-        // Fallback placeholder or offline response
-        return null;
-      });
-    })
-  );
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        }).catch(() => null);
+      })
+    );
+  }
 });

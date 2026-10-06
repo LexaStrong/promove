@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -11,56 +11,82 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { Role } from '@/lib/types';
+import { UserButton } from '@clerk/nextjs';
 
-const navSections = [
+interface NavItemConfig {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  ownerMobileAllowed: boolean;
+  adminAllowed: boolean;
+}
+
+interface NavSectionConfig {
+  title: string;
+  items: NavItemConfig[];
+}
+
+const navSections: NavSectionConfig[] = [
   {
     title: 'Overview',
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, ownerMobileAllowed: true, adminAllowed: true },
     ],
   },
   {
     title: 'Fleet',
     items: [
-      { href: '/vehicles', label: 'Vehicles', icon: Car },
-      { href: '/drivers', label: 'Drivers', icon: Users },
-      { href: '/trips', label: 'Trips', icon: Map },
-      { href: '/live-map', label: 'Live GPS Map', icon: Navigation },
+      { href: '/vehicles', label: 'Vehicles', icon: Car, ownerMobileAllowed: true, adminAllowed: true },
+      /* 
+       * DRIVER SECTION: Commented out for now per requirement: "the driver section must also be commented for now"
+       * { href: '/drivers', label: 'Drivers', icon: Users, ownerMobileAllowed: false, adminAllowed: true },
+       */
+      { href: '/trips', label: 'Trips', icon: Map, ownerMobileAllowed: false, adminAllowed: true },
+      { href: '/live-map', label: 'Live GPS Map', icon: Navigation, ownerMobileAllowed: true, adminAllowed: true },
     ],
   },
   {
     title: 'Finance',
     items: [
-      { href: '/ledger', label: 'Daily Ledger', icon: BookOpen },
-      { href: '/fuel', label: 'Fuel Log', icon: Fuel },
+      { href: '/ledger', label: 'Daily Ledger', icon: BookOpen, ownerMobileAllowed: false, adminAllowed: true },
+      { href: '/fuel', label: 'Fuel Log', icon: Fuel, ownerMobileAllowed: false, adminAllowed: true },
     ],
   },
   {
     title: 'Operations',
     items: [
-      { href: '/maintenance', label: 'Maintenance', icon: Wrench },
-      { href: '/documents', label: 'Documents', icon: FileText },
-      { href: '/incidents', label: 'Incidents', icon: AlertTriangle },
+      { href: '/maintenance', label: 'Maintenance', icon: Wrench, ownerMobileAllowed: true, adminAllowed: true },
+      { href: '/documents', label: 'Documents', icon: FileText, ownerMobileAllowed: true, adminAllowed: false }, // Confidential to owners & drivers
+      { href: '/incidents', label: 'Incidents', icon: AlertTriangle, ownerMobileAllowed: false, adminAllowed: true },
     ],
   },
   {
     title: 'Insights',
     items: [
-      { href: '/reports', label: 'Reports', icon: BarChart3 },
-      { href: '/intelligence', label: 'Fleet Intelligence', icon: Sparkles },
+      { href: '/reports', label: 'Reports', icon: BarChart3, ownerMobileAllowed: true, adminAllowed: true },
+      { href: '/intelligence', label: 'Fleet Intelligence', icon: Sparkles, ownerMobileAllowed: false, adminAllowed: true },
     ],
   },
 ];
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, org, role, switchRole, logout } = useAuth();
+  const { user, org, role, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  const initials = user?.full_name
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const isOwner = mounted ? role === 'owner' : true;
+  const isAdmin = mounted ? role === 'platform_admin' : false;
+
+  const initials = mounted && user?.full_name
     ? user.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'PM';
+
   const activeNavItem = navSections
     .flatMap(section => section.items)
     .find(item => pathname === item.href || pathname.startsWith(item.href + '/'));
@@ -78,25 +104,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="pm-sidebar-nav">
-          {navSections.map(section => (
-            <div key={section.title} className="pm-sidebar-section">
-              <div className="pm-sidebar-section-title">{section.title}</div>
-              {section.items.map(item => {
-                const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`pm-sidebar-link ${isActive ? 'active' : ''}`}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </div>
-          ))}
+          {navSections.map(section => {
+            // Filter items based on admin policy
+            const visibleItems = section.items.filter(item => {
+              if (isAdmin && !item.adminAllowed) return false;
+              return true;
+            });
+
+            if (visibleItems.length === 0) return null;
+
+            // Check if section is completely exempt on mobile for owner
+            const isAllExemptOnMobileForOwner = isOwner && visibleItems.every(i => !i.ownerMobileAllowed);
+
+            return (
+              <div
+                key={section.title}
+                className={`pm-sidebar-section ${isAllExemptOnMobileForOwner ? 'pm-owner-exempt-section' : ''}`}
+              >
+                <div className="pm-sidebar-section-title">{section.title}</div>
+                {visibleItems.map(item => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                  const isExemptForOwnerOnMobile = isOwner && !item.ownerMobileAllowed;
+
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`pm-sidebar-link ${isActive ? 'active' : ''} ${isExemptForOwnerOnMobile ? 'pm-owner-exempt-nav-item' : ''}`}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      <item.icon size={18} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
 
         <div className="pm-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -167,6 +211,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <span className="pm-notif-dot" />
           </Link>
 
+          <UserButton />
+
           <div style={{ position: 'relative' }}>
             <button
               type="button"
@@ -184,14 +230,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="pm-profile-details" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: '0.8125rem', fontWeight: 500 }}>
-                    {user?.full_name}
+                    {mounted ? user?.full_name || 'Fleet Owner' : ''}
                   </span>
                   <span className="pm-badge pm-badge-info" style={{ textTransform: 'capitalize', fontSize: '0.625rem', padding: '1px 6px' }}>
-                    {role.replace('_', ' ')}
+                    {mounted ? role.replace('_', ' ') : 'owner'}
                   </span>
                 </div>
                 <span style={{ fontSize: '0.6875rem', color: 'var(--pm-text-muted)' }}>
-                  {org?.name}
+                  {mounted ? org?.name || 'My Fleet' : ''}
                 </span>
               </div>
               <ChevronDown size={14} style={{ color: 'var(--pm-text-muted)' }} />
@@ -216,35 +262,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
 
-                {/* Switch Role demo menu */}
-                <div style={{ padding: '8px 12px', background: 'var(--pm-bg-subtle)', borderBottom: '1px solid var(--pm-border)' }}>
-                  <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--pm-text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
-                    Switch Role (Demo)
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
-                    {(['owner', 'manager', 'driver', 'viewer', 'platform_admin'] as Role[]).map(r => (
-                      <button
-                        key={r}
-                        onClick={() => { switchRole(r); setProfileOpen(false); }}
-                        style={{
-                          textAlign: 'left',
-                          fontSize: '0.75rem',
-                          padding: '4px 8px',
-                          borderRadius: 'var(--pm-radius-sm)',
-                          border: 'none',
-                          background: role === r ? 'var(--pm-blue-100)' : 'transparent',
-                          color: role === r ? 'var(--pm-blue-700)' : 'var(--pm-text)',
-                          fontWeight: role === r ? 600 : 400,
-                          cursor: 'pointer',
-                          textTransform: 'capitalize',
-                        }}
-                      >
-                        {r.replace('_', ' ')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
+                {/* Driver section commented out per user instruction */}
+                {/*
                 <Link
                   href="/driver-app"
                   style={{
@@ -256,6 +276,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <Smartphone size={16} /> Driver PWA View
                 </Link>
+                */}
 
                 <Link
                   href="/settings"

@@ -4,6 +4,7 @@ import {
   Car, Users, BookOpen, Wrench, FileText,
   BarChart3, Shield, Wifi, ArrowRight,
 } from 'lucide-react';
+import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/nextjs';
 import { siteUrl } from '@/lib/site';
 
 const features = [
@@ -12,11 +13,13 @@ const features = [
     title: 'Vehicle Registry',
     desc: 'Add vehicles one at a time or bulk-import an entire fleet from a spreadsheet. Track make, model, plate, type, and odometer in one place.',
   },
+  /*
   {
     icon: Users,
     title: 'Driver Management',
     desc: 'Register drivers and conductors, track licence expiry, assign vehicles with commission settings, and keep a full assignment history.',
   },
+  */
   {
     icon: BookOpen,
     title: 'Daily Ledger',
@@ -40,7 +43,7 @@ const features = [
   {
     icon: Wifi,
     title: 'Works Offline',
-    desc: 'Drivers log income and expenses even with no signal. Data syncs automatically when connectivity returns, with no duplicates.',
+    desc: 'Record income and expenses even with no signal. Data syncs automatically when connectivity returns, with no duplicates.',
   },
   {
     icon: Shield,
@@ -81,28 +84,52 @@ export default function LandingPage() {
           style={{ width: 200, maxWidth: '40%', height: 'auto', flexShrink: 0 }}
         />
         <div className="pm-landing-nav-actions">
-          <Link href="/login" className="pm-btn pm-btn-ghost">Sign in</Link>
-          <Link href="/register" className="pm-btn pm-btn-primary">Get started</Link>
+          <Show when="signed-out">
+            <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+              <button type="button" className="pm-btn pm-btn-ghost">Sign in</button>
+            </SignInButton>
+            <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
+              <button type="button" className="pm-btn pm-btn-primary">Get started</button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/dashboard" className="pm-btn pm-btn-secondary" style={{ marginRight: 8 }}>
+              Dashboard
+            </Link>
+            <UserButton />
+          </Show>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="pm-landing-hero">
+        <div className="pm-landing-badge">
+          🇬🇭 Ghana&apos;s Dedicated Fleet Operating System • v1.0
+        </div>
         <h1>
           Replace paper records with
           <span style={{ color: 'var(--pm-blue-600)' }}> digital fleet control</span>
         </h1>
         <p>
-          ProMove gives Ghana&apos;s vehicle owners a single platform to track vehicles,
-          drivers, daily income, maintenance, documents, and incidents. Built to work
-          on 3G and low-end Android phones.
+          ProMove gives Ghana&apos;s vehicle owners a single unified platform to track commercial vehicles,
+          daily revenue collections, maintenance intervals, documents, and incidents across all major transit corridors.
         </p>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <Link href="/register" className="pm-btn pm-btn-primary pm-btn-lg">
-            Start managing your fleet
-            <ArrowRight size={18} />
-          </Link>
-          <Link href="/dashboard" className="pm-btn pm-btn-secondary pm-btn-lg">
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 'var(--pm-space-6)' }}>
+          <Show when="signed-out">
+            <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
+              <button type="button" className="pm-btn pm-btn-primary pm-btn-lg">
+                Start managing your fleet
+                <ArrowRight size={18} />
+              </button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <Link href="/dashboard" className="pm-btn pm-btn-primary pm-btn-lg">
+              Go to dashboard
+              <ArrowRight size={18} />
+            </Link>
+          </Show>
+          <Link href="/dashboard?demo=true" className="pm-btn pm-btn-secondary pm-btn-lg">
             View demo dashboard
           </Link>
         </div>
@@ -121,7 +148,7 @@ export default function LandingPage() {
         }}>
           {[
             { val: 'GH₵', label: 'Money stored as pesewas, never floats' },
-            { val: 'Offline', label: 'Drivers log income with no signal' },
+            { val: 'Offline', label: 'Log income and trips with no signal' },
             { val: 'Audited', label: 'Every change to money and roles tracked' },
             { val: 'Isolated', label: 'Your data is never visible to other owners' },
           ].map(s => (
@@ -183,35 +210,35 @@ export default function LandingPage() {
             fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
             marginBottom: 'var(--pm-space-10)',
           }}>
-            Built for every role in your operation
+            Built for enterprise transport operations
           </h2>
 
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
             gap: 'var(--pm-space-6)',
-            maxWidth: 900,
+            maxWidth: 960,
             margin: '0 auto',
           }}>
             {[
               {
-                role: 'Owner',
-                desc: 'Full access to your organisation. See every vehicle, driver, and cedi.',
+                role: 'Fleet Owner',
+                desc: 'Full sovereign ownership of your workspace. Monitor vehicles, track daily cashflow, and manage confidential documents.',
                 color: 'var(--pm-blue-600)',
               },
               {
-                role: 'Manager',
-                desc: 'Run daily operations. No billing changes, no role changes, no deletes.',
+                role: 'Operations Manager',
+                desc: 'Coordinate maintenance, track incidents, and monitor live road telematics without financial modification rights.',
                 color: 'var(--pm-success)',
               },
               {
-                role: 'Driver',
-                desc: 'See your assignment. Log income, expenses, fuel, and faults.',
-                color: 'var(--pm-warning)',
+                role: 'Platform Administrator',
+                desc: 'Dedicated enterprise portal (/admin) for telematics monitoring, multi-tenant audits, and regulatory compliance.',
+                color: 'var(--pm-blue-700)',
               },
               {
-                role: 'Viewer',
-                desc: 'Read-only access for co-owners, accountants, and investors.',
+                role: 'Auditor & Accountant',
+                desc: 'Immutable append-only ledger exports, revenue reconciliations, and statutory Act 843 compliance verification.',
                 color: 'var(--pm-gray-500)',
               },
             ].map(r => (
@@ -251,14 +278,28 @@ export default function LandingPage() {
         }}>
           Stop losing money in exercise books. Start with ProMove today.
         </p>
-        <Link href="/register" className="pm-btn pm-btn-lg" style={{
-          background: '#FFFFFF',
-          color: 'var(--pm-blue-700)',
-          fontWeight: 600,
-        }}>
-          Create your account
-          <ArrowRight size={18} />
-        </Link>
+        <Show when="signed-out">
+          <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
+            <button type="button" className="pm-btn pm-btn-lg" style={{
+              background: '#FFFFFF',
+              color: 'var(--pm-blue-700)',
+              fontWeight: 600,
+            }}>
+              Create your account
+              <ArrowRight size={18} />
+            </button>
+          </SignUpButton>
+        </Show>
+        <Show when="signed-in">
+          <Link href="/dashboard" className="pm-btn pm-btn-lg" style={{
+            background: '#FFFFFF',
+            color: 'var(--pm-blue-700)',
+            fontWeight: 600,
+          }}>
+            Open your dashboard
+            <ArrowRight size={18} />
+          </Link>
+        </Show>
       </section>
 
       {/* Footer */}

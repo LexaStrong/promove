@@ -2,18 +2,60 @@
 
 import React, { useState } from 'react';
 import { Plus, Fuel, Search } from 'lucide-react';
-import { formatPesewas } from '@/lib/types';
-import { mockFuelLogs, mockVehicles, mockDrivers } from '@/lib/mock-data';
+import { formatPesewas, cedisToPesewas } from '@/lib/types';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function FuelPage() {
+  const { fuelLogs, vehicles, drivers, addFuelLog } = useFleet();
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState({
+    vehicle_id: '',
+    driver_id: '',
+    filled_on: new Date().toISOString().slice(0, 10),
+    litres: '',
+    amount_cedis: '',
+    odometer_km: '',
+    station: '',
+  });
 
-  const filtered = mockFuelLogs.filter(f => {
+  const filtered = fuelLogs.filter(f => {
     if (!search) return true;
-    return `${f.vehicle?.plate_number} ${f.driver?.full_name} ${f.station || ''}`
+    return `${f.vehicle?.plate_number || ''} ${f.driver?.full_name || ''} ${f.station || ''}`
       .toLowerCase().includes(search.toLowerCase());
   });
+
+  const handleAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.vehicle_id) {
+      alert('Please select a vehicle');
+      return;
+    }
+    const litresNum = parseFloat(formData.litres) || 0;
+    const amountPesewas = cedisToPesewas(parseFloat(formData.amount_cedis) || 0);
+    const odoNum = formData.odometer_km ? parseInt(formData.odometer_km, 10) : null;
+
+    addFuelLog({
+      vehicle_id: formData.vehicle_id,
+      driver_id: formData.driver_id || null,
+      filled_on: formData.filled_on,
+      litres: litresNum,
+      amount_pesewas: amountPesewas,
+      odometer_km: odoNum,
+      station: formData.station || null,
+    });
+
+    setFormData({
+      vehicle_id: '',
+      driver_id: '',
+      filled_on: new Date().toISOString().slice(0, 10),
+      litres: '',
+      amount_cedis: '',
+      odometer_km: '',
+      station: '',
+    });
+    setShowAddModal(false);
+  };
 
   const totalLitres = filtered.reduce((s, f) => s + f.litres, 0);
   const totalCost = filtered.reduce((s, f) => s + f.amount_pesewas, 0);
@@ -111,54 +153,99 @@ export default function FuelPage() {
               <h3>Log Fuel</h3>
               <button className="pm-btn pm-btn-ghost pm-btn-icon" onClick={() => setShowAddModal(false)}>×</button>
             </div>
-            <div className="pm-modal-body">
-              <div className="pm-form-group">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Vehicle</label>
-                    <select className="pm-select">
-                      <option value="">Select vehicle</option>
-                      {mockVehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
-                    </select>
+            <form onSubmit={handleAddSubmit}>
+              <div className="pm-modal-body">
+                <div className="pm-form-group">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Vehicle</label>
+                      <select
+                        className="pm-select"
+                        required
+                        value={formData.vehicle_id}
+                        onChange={e => setFormData({ ...formData, vehicle_id: e.target.value })}
+                      >
+                        <option value="">Select vehicle</option>
+                        {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+                      </select>
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Driver</label>
+                      <select
+                        className="pm-select"
+                        value={formData.driver_id}
+                        onChange={e => setFormData({ ...formData, driver_id: e.target.value })}
+                      >
+                        <option value="">Select driver</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <div className="pm-input-group">
-                    <label className="pm-label">Driver</label>
-                    <select className="pm-select">
-                      <option value="">Select driver</option>
-                      {mockDrivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                    </select>
+                    <label className="pm-label">Date</label>
+                    <input
+                      type="date"
+                      className="pm-input"
+                      required
+                      value={formData.filled_on}
+                      onChange={e => setFormData({ ...formData, filled_on: e.target.value })}
+                    />
                   </div>
-                </div>
-                <div className="pm-input-group">
-                  <label className="pm-label">Date</label>
-                  <input type="date" className="pm-input" defaultValue={new Date().toISOString().slice(0, 10)} />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Litres</label>
-                    <input type="number" className="pm-input" placeholder="0" step="0.1" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Litres</label>
+                      <input
+                        type="number"
+                        className="pm-input"
+                        placeholder="0"
+                        step="0.1"
+                        required
+                        value={formData.litres}
+                        onChange={e => setFormData({ ...formData, litres: e.target.value })}
+                      />
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Amount (GH₵)</label>
+                      <input
+                        type="number"
+                        className="pm-input"
+                        placeholder="0.00"
+                        step="0.01"
+                        required
+                        value={formData.amount_cedis}
+                        onChange={e => setFormData({ ...formData, amount_cedis: e.target.value })}
+                      />
+                    </div>
                   </div>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Amount (GH₵)</label>
-                    <input type="number" className="pm-input" placeholder="0.00" step="0.01" />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Odometer (km)</label>
-                    <input type="number" className="pm-input" placeholder="Current reading" />
-                  </div>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Station</label>
-                    <input type="text" className="pm-input" placeholder="e.g. Shell Kaneshie" />
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Odometer (km)</label>
+                      <input
+                        type="number"
+                        className="pm-input"
+                        placeholder="Current reading"
+                        value={formData.odometer_km}
+                        onChange={e => setFormData({ ...formData, odometer_km: e.target.value })}
+                      />
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Station</label>
+                      <input
+                        type="text"
+                        className="pm-input"
+                        placeholder="e.g. Shell Kaneshie"
+                        value={formData.station}
+                        onChange={e => setFormData({ ...formData, station: e.target.value })}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-            <div className="pm-modal-footer">
-              <button className="pm-btn pm-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="pm-btn pm-btn-primary" onClick={() => setShowAddModal(false)}>Log Fuel</button>
-            </div>
+              <div className="pm-modal-footer">
+                <button type="button" className="pm-btn pm-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="pm-btn pm-btn-primary">Log Fuel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,20 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Download, Calendar, Printer, CheckCircle2, ShieldCheck, X, FileSpreadsheet, Building2 } from 'lucide-react';
 import { formatPesewas } from '@/lib/types';
-import { mockVehicles, mockLedgerEntries, mockDailyTotals } from '@/lib/mock-data';
+import { mockDailyTotals } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function ReportsPage() {
+  const { vehicles, ledgerEntries, orgName, isDemo } = useFleet();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
   const [vehicleFilter, setVehicleFilter] = useState('');
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportBranding, setExportBranding] = useState<'promove' | 'lextech'>('promove');
 
-  const confirmedEntries = mockLedgerEntries.filter(e => e.status === 'confirmed');
+  const confirmedEntries = ledgerEntries.filter(e => e.status === 'confirmed');
 
   // Per-vehicle summaries
-  const vehicleSummaries = mockVehicles
+  const vehicleSummaries = vehicles
     .filter(v => !v.archived_at)
     .filter(v => !vehicleFilter || v.id === vehicleFilter)
     .map(v => {
@@ -34,6 +36,24 @@ export default function ReportsPage() {
   // Exact pesewa audit verification check against confirmed ledger
   const ledgerTotalIncome = confirmedEntries.filter(e => e.entry_type === 'income').reduce((s, e) => s + e.amount_pesewas, 0);
   const ledgerDiscrepancyPesewas = vehicleFilter ? 0 : Math.abs(grandIncome - ledgerTotalIncome);
+
+  // Daily totals calculation
+  const dailyTotals = useMemo(() => {
+    if (isDemo) return mockDailyTotals;
+
+    // Generate past 14 days
+    const days: { date: string; income_pesewas: number; expense_pesewas: number }[] = [];
+    const now = new Date();
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      const dateStr = d.toISOString().slice(0, 10);
+      const dayEntries = confirmedEntries.filter(e => e.entry_date === dateStr);
+      const inc = dayEntries.filter(e => e.entry_type === 'income').reduce((s, e) => s + e.amount_pesewas, 0);
+      const exp = dayEntries.filter(e => ['expense', 'commission'].includes(e.entry_type)).reduce((s, e) => s + e.amount_pesewas, 0);
+      days.push({ date: dateStr, income_pesewas: inc, expense_pesewas: exp });
+    }
+    return days;
+  }, [isDemo, confirmedEntries]);
 
   const handlePrint = () => {
     window.print();
@@ -103,7 +123,7 @@ export default function ReportsPage() {
         </div>
         <select className="pm-select" value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{ width: 180 }}>
           <option value="">All vehicles</option>
-          {mockVehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+          {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
         </select>
 
         {/* Audit verification tag */}
@@ -166,8 +186,8 @@ export default function ReportsPage() {
         </div>
         <div style={{ padding: 'var(--pm-space-5)', overflowX: 'auto' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, minWidth: 600 }}>
-            {mockDailyTotals.map((day, i) => {
-              const maxVal = Math.max(...mockDailyTotals.map(d => d.income_pesewas)) || 1;
+            {dailyTotals.map((day, i) => {
+              const maxVal = Math.max(...dailyTotals.map(d => d.income_pesewas)) || 1;
               const incomeH = (day.income_pesewas / maxVal) * 140;
               const expenseH = (day.expense_pesewas / maxVal) * 140;
               const dayLabel = new Date(day.date).toLocaleDateString('en-GH', { weekday: 'short' });
@@ -227,28 +247,36 @@ export default function ReportsPage() {
               </tr>
             </thead>
             <tbody>
-              {vehicleSummaries.map(vs => (
-                <tr key={vs.vehicle.id}>
-                  <td style={{ fontWeight: 600 }}>{vs.vehicle.plate_number}</td>
-                  <td style={{ color: 'var(--pm-text-secondary)', textTransform: 'capitalize' }}>{vs.vehicle.vehicle_type}</td>
-                  <td style={{ textAlign: 'right', color: 'var(--pm-success)' }} className="pm-text-money">
-                    {formatPesewas(vs.income)}
+              {vehicleSummaries.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--pm-space-6)', color: 'var(--pm-text-secondary)' }}>
+                    No vehicles found. Add your vehicles to generate performance reports.
                   </td>
-                  <td style={{ textAlign: 'right', color: 'var(--pm-error)' }} className="pm-text-money">
-                    {formatPesewas(vs.expenses)}
-                  </td>
-                  <td style={{
-                    textAlign: 'right', fontWeight: 600,
-                    color: vs.net >= 0 ? 'var(--pm-success)' : 'var(--pm-error)',
-                  }} className="pm-text-money">
-                    {formatPesewas(vs.net)}
-                  </td>
-                  <td style={{ textAlign: 'right', color: 'var(--pm-text-secondary)' }}>
-                    {vs.income > 0 ? `${Math.round((vs.net / vs.income) * 100)}%` : '0%'}
-                  </td>
-                  <td style={{ textAlign: 'right', color: 'var(--pm-text-muted)' }}>{vs.entries}</td>
                 </tr>
-              ))}
+              ) : (
+                vehicleSummaries.map(vs => (
+                  <tr key={vs.vehicle.id}>
+                    <td style={{ fontWeight: 600 }}>{vs.vehicle.plate_number}</td>
+                    <td style={{ color: 'var(--pm-text-secondary)', textTransform: 'capitalize' }}>{vs.vehicle.vehicle_type}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--pm-success)' }} className="pm-text-money">
+                      {formatPesewas(vs.income)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--pm-error)' }} className="pm-text-money">
+                      {formatPesewas(vs.expenses)}
+                    </td>
+                    <td style={{
+                      textAlign: 'right', fontWeight: 600,
+                      color: vs.net >= 0 ? 'var(--pm-success)' : 'var(--pm-error)',
+                    }} className="pm-text-money">
+                      {formatPesewas(vs.net)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--pm-text-secondary)' }}>
+                      {vs.income > 0 ? `${Math.round((vs.net / vs.income) * 100)}%` : '0%'}
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--pm-text-muted)' }}>{vs.entries}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, borderTop: '2px solid var(--pm-border)' }}>
@@ -357,7 +385,7 @@ export default function ReportsPage() {
                         {exportBranding === 'promove' ? 'PROMOVE FLEET MANAGEMENT' : 'LEXTECH AUDIT VERIFIED FLEET REPORT'}
                       </h2>
                       <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)' }}>
-                        Organisation: Accra Central Metro Fleet (Tenancy ID: org_gh_01)
+                        Organisation: {orgName}
                       </div>
                     </div>
                   </div>

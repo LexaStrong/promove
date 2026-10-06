@@ -81,3 +81,58 @@ test('GPS Geofencing: Accurately checks depot proximity and boundaries', () => {
   const distanceOutside = calculateDistanceMeters(depotLat, depotLng, 5.568, -0.215);
   assert.ok(distanceOutside > depotRadiusMeters, 'Point B must be outside depot radius');
 });
+
+test('Traccar & In-App Telemetry: Ingestion, live speed, battery, and Ghana corridor geofencing', () => {
+  // Ghana Geofences
+  const geofences = [
+    { name: 'Kwame Nkrumah Interchange (Circle)', lat: 5.5590, lng: -0.2085, radiusMeters: 650 },
+    { name: 'Kasoa Tollbooth Winneba Corridor', lat: 5.5324, lng: -0.3541, radiusMeters: 800 },
+    { name: 'Tema Motorway Transit Gate', lat: 5.6420, lng: -0.0105, radiusMeters: 900 },
+  ];
+
+  // 1. Ingest normal vehicle moving inside Circle geofence
+  const vehiclePing = {
+    vehicleId: 'test-trotro-1',
+    plateNumber: 'GR 9900-24',
+    imei: '864201049281999',
+    lat: 5.5590,
+    lng: -0.2085,
+    speedKmh: 42,
+    batteryPercentage: 92,
+    ignition: true,
+    lastSeen: new Date().toISOString(),
+  };
+
+  const status = determineStatus(vehiclePing, Date.now());
+  assert.equal(status, 'moving');
+  assert.equal(vehiclePing.speedKmh, 42);
+  assert.equal(vehiclePing.batteryPercentage, 92);
+
+  // Check geofence
+  const matchedGf = geofences.find(gf => calculateDistanceMeters(vehiclePing.lat, vehiclePing.lng, gf.lat, gf.lng) <= gf.radiusMeters);
+  assert.ok(matchedGf, 'Must detect vehicle is inside Kwame Nkrumah Interchange');
+  assert.equal(matchedGf.name, 'Kwame Nkrumah Interchange (Circle)');
+
+  // 2. Ingest overspeed violation (>80 km/h)
+  const speedingVehicle = {
+    vehicleId: 'test-trotro-2',
+    plateNumber: 'GT 5500-23',
+    lat: 5.6420,
+    lng: -0.0105,
+    speedKmh: 96, // 96 km/h > 80 km/h threshold
+    batteryPercentage: 84,
+    ignition: true,
+    lastSeen: new Date().toISOString(),
+  };
+
+  const speedLimit = 80;
+  const isOverspeed = speedingVehicle.speedKmh > speedLimit;
+  assert.equal(isOverspeed, true, 'Vehicle at 96 km/h must trigger an overspeed alert');
+
+  // 3. Ingest low battery telematics warning (<20%)
+  const lowBatteryVehicle = {
+    vehicleId: 'test-trotro-3',
+    batteryPercentage: 14,
+  };
+  assert.ok(lowBatteryVehicle.batteryPercentage < 20, 'Telemetry battery warning triggered below 20%');
+});

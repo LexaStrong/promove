@@ -25,10 +25,11 @@ import {
   Route,
   ChevronUp,
 } from 'lucide-react';
-import { GpsPosition, VehicleGpsStatus, GpsAlert } from '@/lib/gps/traccar-adapter';
+import { GpsPosition, VehicleGpsStatus, VehicleCondition, GpsAlert } from '@/lib/gps/traccar-adapter';
 import { fleetPositions } from '@/lib/gps/fleet-positions';
 import { mockDrivers } from '@/lib/mock-data';
 import { useAuth } from '@/lib/auth-context';
+import { useFleet } from '@/lib/fleet-context';
 import type { VehicleMarkerData } from '@/components/map/tracking-map';
 
 // Dynamically import Leaflet Map to ensure SSR compatibility in Next.js
@@ -108,14 +109,34 @@ function isPositionStale(position: GpsPosition) {
   return position.status === 'offline' || getPositionAgeMinutes(position.timestamp) >= 15;
 }
 
+export function getVehicleCondition(position: GpsPosition): VehicleCondition {
+  if (position.condition) return position.condition;
+  if (position.status === 'offline' || isPositionStale(position)) return 'offline';
+  if (position.status === 'idle') return 'idle';
+  if (position.status === 'parked') return 'parked';
+  return 'parked';
+}
+
 export default function LiveMapPage() {
   const router = useRouter();
-  const { org } = useAuth();
-  const positionCacheKey = `promove-live-map:${org?.id ?? 'demo'}`;
-  const [vehicles, setVehicles] = useState<GpsPosition[]>(fleetPositions);
+  const { org, role } = useAuth();
+  const { isDemo, orgName, drivers: fleetDrivers, vehicles: ownedVehicles } = useFleet();
+  // Identifiers of the signed-in user's own vehicles; live telemetry is limited to these outside demo mode
+  const ownedIdsRef = useRef<{ isDemo: boolean; ids: Set<string> }>({ isDemo, ids: new Set() });
+  ownedIdsRef.current = {
+    isDemo,
+    ids: new Set(
+      ownedVehicles.flatMap(v => [v.id, v.plate_number, v.gps_device_id].filter((x): x is string => Boolean(x)))
+    ),
+  };
+  const isOwner = role === 'owner';
+  const positionCacheKey = `promove-live-map:${isDemo ? 'demo' : (org?.id ?? 'clean')}`;
+  const [vehicles, setVehicles] = useState<GpsPosition[]>(isDemo ? fleetPositions : []);
   const [loadedCacheKey, setLoadedCacheKey] = useState('');
-  const [selectedVehicle, setSelectedVehicle] = useState<GpsPosition>(fleetPositions[0]);
-  const [statusFilter, setStatusFilter] = useState<VehicleGpsStatus | 'all'>('all');
+  const [selectedVehicle, setSelectedVehicle] = useState<GpsPosition | null>(
+    isDemo && fleetPositions.length > 0 ? fleetPositions[0] : null
+  );
+  const [conditionFilter, setConditionFilter] = useState<VehicleCondition | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sheetSnap, setSheetSnap] = useState<'peek' | 'half' | 'full'>('peek');
   const [isFollowing, setIsFollowing] = useState(false);
@@ -124,7 +145,7 @@ export default function LiveMapPage() {
   const sheetPointerStart = useRef<number | null>(null);
   const [showGeofences, setShowGeofences] = useState(true);
   const [showTrail, setShowTrail] = useState(true);
-  const [alerts, setAlerts] = useState<GpsAlert[]>(mockSafetyAlerts);
+  const [alerts, setAlerts] = useState<GpsAlert[]>(isDemo ? mockSafetyAlerts : []);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const sheetSwiped = useRef(false);
@@ -159,7 +180,7 @@ export default function LiveMapPage() {
             : position);
           if (positions.length > 0) {
             setVehicles(positions);
-            setSelectedVehicle(current => positions.find(position => position.vehicleId === current.vehicleId) ?? positions[0]);
+            setSelectedVehicle(current => (current ? positions.find(position => position.vehicleId === current.vehicleId) : null) ?? positions[0]);
           }
         }
       } catch {
@@ -182,6 +203,54 @@ export default function LiveMapPage() {
       // Storage can be unavailable or full; map rendering remains usable.
     }
   }, [loadedCacheKey, positionCacheKey, vehicles]);
+
+  // Real-time telematics polling from TelemetryHub (Traccar hardware & In-App GPS)
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLivePositions = async () => {
+      try {
+        const res = await fetch('/api/gps/positions');
+        if (!res.ok) return;
+        const data = await res.json();
+        const { isDemo: demoMode, ids } = ownedIdsRef.current;
+        if (data && Array.isArray(data.positions) && !demoMode) {
+          data.positions = data.positions.filter((p: GpsPosition) =>
+            ids.has(p.vehicleId) || ids.has(p.plateNumber) || (p.imei ? ids.has(p.imei) : false)
+          );
+          const kept = new Set((data.positions as GpsPosition[]).map(p => p.vehicleId));
+          data.alerts = Array.isArray(data.alerts)
+            ? data.alerts.filter((a: GpsAlert) => kept.has(a.vehicleId))
+            : [];
+        }
+        if (isMounted && data?.positions && Array.isArray(data.positions) && data.positions.length > 0) {
+          setVehicles(prev => {
+            const updatedMap = new Map<string, GpsPosition>();
+            for (const p of prev) updatedMap.set(p.vehicleId, p);
+            for (const p of data.positions) updatedMap.set(p.vehicleId, p);
+            return Array.from(updatedMap.values());
+          });
+
+          if (data.alerts && Array.isArray(data.alerts) && data.alerts.length > 0) {
+            setAlerts(prev => {
+              const existingIds = new Set(prev.map(a => a.id));
+              const newAlerts = data.alerts.filter((a: GpsAlert) => !existingIds.has(a.id));
+              return [...newAlerts, ...prev].slice(0, 20);
+            });
+          }
+        }
+      } catch {
+        // Network drop fallback
+      }
+    };
+
+    fetchLivePositions();
+    const interval = setInterval(fetchLivePositions, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Route playback state
   const [isPlaybackOpen, setIsPlaybackOpen] = useState(false);
@@ -207,17 +276,22 @@ export default function LiveMapPage() {
   }, [isPlaying, playbackSpeed]);
 
   const filteredVehicles = vehicles.filter(v => {
-    const matchesStatus = statusFilter === 'all'
-      || (statusFilter === 'offline' ? isPositionStale(v) : v.status === statusFilter);
+    // When role is owner, strictly show only vehicles belonging to current owner
+    if (isOwner && v.orgId !== (org?.id ?? 'org-001')) {
+      return false;
+    }
+    const cond = getVehicleCondition(v);
+    const matchesCondition = conditionFilter === 'all' || cond === conditionFilter;
     const query = searchQuery.trim().toLowerCase();
     const matchesSearch = !query || `${v.plateNumber} ${v.driverName ?? ''}`.toLowerCase().includes(query);
-    return matchesStatus && matchesSearch;
+    return matchesCondition && matchesSearch;
   });
 
-  const movingCount = vehicles.filter(v => v.status === 'moving').length;
-  const idleCount = vehicles.filter(v => v.status === 'idle').length;
-  const parkedCount = vehicles.filter(v => v.status === 'parked').length;
-  const offlineCount = vehicles.filter(isPositionStale).length;
+  const parkedCount = vehicles.filter(v => getVehicleCondition(v) === 'parked').length;
+  const offlineCount = vehicles.filter(v => getVehicleCondition(v) === 'offline').length;
+  const alertCount = vehicles.filter(v => getVehicleCondition(v) === 'alert').length;
+  const idleCount = vehicles.filter(v => getVehicleCondition(v) === 'idle').length;
+  const maintenanceCount = vehicles.filter(v => getVehicleCondition(v) === 'maintenance').length;
 
   const handleAcknowledgeAlert = (alertId: string) => {
     setAlerts(prev => prev.map(a => (a.id === alertId ? { ...a, acknowledged: true } : a)));
@@ -249,92 +323,131 @@ export default function LiveMapPage() {
     });
   };
 
-  // Convert fleet positions into marker data format matching OSMdivIcon requirements
-  const mapMarkerList: VehicleMarkerData[] = [
-    // 1. Featured active vehicle LOC (GE 3797-20  LOC)
-    {
-      id: 'veh-ge3797-loc',
-      vehicleId: 'veh-ge3797',
-      plateNumber: 'GE 3797-20',
-      label: 'GE 3797-20  LOC',
-      driverName: 'Kweku Addo',
-      status: 'moving',
-      speedKmh: 48,
-      courseHeading: 72,
-      latitude: 5.6420,
-      longitude: -0.0105,
-      batteryPercentage: 96,
-      ignition: true,
-      imei: '864201049281700',
-      locationLabel: 'Tema Port & Motorway Transit Corridor',
-      timestamp: vehicles[0].timestamp,
-      trailCoordinates: vehicles[0].trailCoordinates,
-      isStale: isPositionStale(vehicles[0]),
-    },
-    // 2. Associated TRK point (GE 3797-20 TRK)
-    {
-      id: 'veh-ge3797-trk',
-      vehicleId: 'veh-ge3797',
-      plateNumber: 'GE 3797-20',
-      label: 'GE 3797-20 TRK',
-      driverName: 'Kweku Addo',
-      status: 'moving',
-      speedKmh: 45,
-      courseHeading: 68,
-      latitude: 5.6315,
-      longitude: -0.0240,
-      batteryPercentage: 96,
-      ignition: true,
-      imei: '864201049281700',
-      locationLabel: 'Ashaiman Interchange Approach',
-      timestamp: vehicles[0].timestamp,
-      trailCoordinates: vehicles[0].trailCoordinates,
-      isStale: isPositionStale(vehicles[0]),
-      isTrk: true,
-    },
-    // 3. Other fleet vehicles across Greater Accra
-    ...vehicles
-      .filter(v => v.vehicleId !== 'veh-ge3797')
-      .map(v => ({
-        id: v.id,
-        vehicleId: v.vehicleId,
-        plateNumber: v.plateNumber,
-        label: `${v.plateNumber}  LOC`,
-        driverName: v.driverName,
-        status: v.status,
-        speedKmh: v.speedKmh,
-        courseHeading: v.courseHeading,
-        latitude: v.latitude,
-        longitude: v.longitude,
-        batteryPercentage: v.batteryPercentage,
-        ignition: v.ignition,
-        imei: v.imei,
-        locationLabel: v.locationLabel,
-        timestamp: v.timestamp,
-        trailCoordinates: v.trailCoordinates,
-        isStale: isPositionStale(v),
-      })),
-  ];
+  // Convert fleet positions into marker data format with sizeable condition blips
+  const mapMarkerList: VehicleMarkerData[] = vehicles.length === 0 ? [] : (
+    isDemo && vehicles[0]?.vehicleId === 'veh-ge3797'
+      ? [
+          // 1. Featured active vehicle LOC (GE 3797-20  LOC)
+          {
+            id: 'veh-ge3797-loc',
+            vehicleId: 'veh-ge3797',
+            plateNumber: 'GE 3797-20',
+            label: 'GE 3797-20  LOC',
+            driverName: 'Kweku Addo',
+            status: vehicles[0].status,
+            condition: getVehicleCondition(vehicles[0]),
+            speedKmh: vehicles[0].speedKmh,
+            courseHeading: 72,
+            latitude: 5.6420,
+            longitude: -0.0105,
+            batteryPercentage: 96,
+            ignition: vehicles[0].ignition,
+            imei: '864201049281700',
+            locationLabel: 'Tema Port & Motorway Transit Corridor',
+            timestamp: vehicles[0].timestamp,
+            trailCoordinates: vehicles[0].trailCoordinates,
+            isStale: isPositionStale(vehicles[0]),
+          },
+          // 2. Associated TRK point (GE 3797-20 TRK)
+          {
+            id: 'veh-ge3797-trk',
+            vehicleId: 'veh-ge3797',
+            plateNumber: 'GE 3797-20',
+            label: 'GE 3797-20 TRK',
+            driverName: 'Kweku Addo',
+            status: vehicles[0].status,
+            condition: getVehicleCondition(vehicles[0]),
+            speedKmh: 45,
+            courseHeading: 68,
+            latitude: 5.6315,
+            longitude: -0.0240,
+            batteryPercentage: 96,
+            ignition: true,
+            imei: '864201049281700',
+            locationLabel: 'Ashaiman Interchange Approach',
+            timestamp: vehicles[0].timestamp,
+            trailCoordinates: vehicles[0].trailCoordinates,
+            isStale: isPositionStale(vehicles[0]),
+            isTrk: true,
+          },
+          // 3. Other fleet vehicles across Greater Accra
+          ...vehicles
+            .filter(v => v.vehicleId !== 'veh-ge3797')
+            .map(v => ({
+              id: v.id,
+              vehicleId: v.vehicleId,
+              plateNumber: v.plateNumber,
+              label: `${v.plateNumber}  LOC`,
+              driverName: v.driverName,
+              status: v.status,
+              condition: getVehicleCondition(v),
+              speedKmh: v.speedKmh,
+              courseHeading: v.courseHeading,
+              latitude: v.latitude,
+              longitude: v.longitude,
+              batteryPercentage: v.batteryPercentage,
+              ignition: v.ignition,
+              imei: v.imei,
+              locationLabel: v.locationLabel,
+              timestamp: v.timestamp,
+              trailCoordinates: v.trailCoordinates,
+              isStale: isPositionStale(v),
+            })),
+        ]
+      : vehicles.map(v => ({
+          id: v.id,
+          vehicleId: v.vehicleId,
+          plateNumber: v.plateNumber,
+          label: `${v.plateNumber}  LOC`,
+          driverName: v.driverName,
+          status: v.status,
+          condition: getVehicleCondition(v),
+          speedKmh: v.speedKmh,
+          courseHeading: v.courseHeading,
+          latitude: v.latitude,
+          longitude: v.longitude,
+          batteryPercentage: v.batteryPercentage,
+          ignition: v.ignition,
+          imei: v.imei,
+          locationLabel: v.locationLabel,
+          timestamp: v.timestamp,
+          trailCoordinates: v.trailCoordinates,
+          isStale: isPositionStale(v),
+        }))
+  );
 
-  // Navigate to vehicle dedicated page on click
+  // Navigate to vehicle dedicated page on click (or show sheet on mobile for owner)
   const handleOpenVehiclePage = (vehicleId: string) => {
+    if (isOwner && typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setSheetSnap('full');
+      return;
+    }
     router.push(`/vehicles/${vehicleId}`);
   };
 
-  const selectedDriverPhone = mockDrivers.find(
-    driver => driver.full_name === selectedVehicle.driverName
-  )?.phone;
+  const selectedDriverPhone = selectedVehicle
+    ? ((fleetDrivers.length > 0 ? fleetDrivers : mockDrivers).find(
+        driver => driver.full_name === selectedVehicle.driverName
+      )?.phone)
+    : undefined;
 
   return (
     <div className="pm-live-map-page" style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', gap: 'var(--pm-space-3)' }}>
       {/* Page Header */}
       <div className="pm-page-header pm-live-map-page-header" style={{ marginBottom: 0 }}>
         <div>
-          <h1 className="pm-page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <h1 className="pm-page-title" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <Navigation size={22} color="var(--pm-blue-600)" /> Live GPS Fleet Map
+            {isOwner && (
+              <span className="pm-badge pm-badge-info" style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                Owner Fleet: {orgName || org?.name || 'My Fleet'}
+              </span>
+            )}
           </h1>
           <p className="pm-page-subtitle">
-            Leaflet telematics engine, real-time vehicle coordinates, and dedicated vehicle page navigation
+            {isOwner
+              ? 'Real-time GPS telematics tracking for your registered fleet vehicles across Ghana corridors'
+              : 'Leaflet telematics engine, real-time vehicle coordinates, and dedicated vehicle page navigation'}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 'var(--pm-space-2)', flexWrap: 'wrap' }}>
@@ -395,21 +508,23 @@ export default function LiveMapPage() {
             </button>
           )}
         </label>
-        <div className="pm-live-map-status-chips" role="group" aria-label="Filter vehicles by status">
+        <div className="pm-live-map-status-chips" role="group" aria-label="Filter vehicles by condition">
           {[
-            { key: 'moving', label: 'Moving', count: movingCount, icon: '/moving.png' },
-            { key: 'idle', label: 'Idle', count: idleCount, icon: '/idle.png' },
-            { key: 'parked', label: 'Parked', count: parkedCount, icon: '/parked.png' },
-            { key: 'offline', label: 'Offline', count: offlineCount, icon: '/offline.png' },
+            { key: 'parked', label: 'Parked', count: parkedCount, icon: '/pins/parked.png' },
+            { key: 'idle', label: 'Idle', count: idleCount, icon: '/pins/idle.png' },
+            { key: 'alert', label: 'Alert', count: alertCount, icon: '/pins/alert.png' },
+            { key: 'maintenance', label: 'Maintenance', count: maintenanceCount, icon: '/pins/maintenance.png' },
+            { key: 'offline', label: 'Offline', count: offlineCount, icon: '/pins/offline.png' },
           ].map(chip => (
             <button
               key={chip.key}
               type="button"
-              className={`pm-live-map-status-chip status-${chip.key} ${statusFilter === chip.key ? 'active' : ''}`}
-              aria-pressed={statusFilter === chip.key}
-              onClick={() => setStatusFilter(statusFilter === chip.key ? 'all' : chip.key as VehicleGpsStatus)}
+              className={`pm-live-map-status-chip condition-${chip.key} ${conditionFilter === chip.key ? 'active' : ''}`}
+              aria-pressed={conditionFilter === chip.key}
+              onClick={() => setConditionFilter(conditionFilter === chip.key ? 'all' : chip.key as VehicleCondition)}
             >
-              <img src={chip.icon} alt="" style={{ width: 12, height: 12, objectFit: 'contain' }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={chip.icon} alt="" style={{ width: 14, height: 17, objectFit: 'contain' }} />
               <span>{chip.label}</span>
               <strong>{chip.count}</strong>
             </button>
@@ -417,16 +532,22 @@ export default function LiveMapPage() {
         </div>
         <div className="pm-live-map-mobile-summary" aria-live="polite">
           <div className="pm-live-map-summary-pill">
-            <span className="pm-live-map-summary-dot status-moving" />
-            <span>{movingCount} moving</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pins/parked.png" alt="" style={{ width: 12, height: 14, objectFit: 'contain' }} />
+            <span>{parkedCount} Parked</span>
           </div>
           <div className="pm-live-map-summary-pill">
-            <span className="pm-live-map-summary-dot status-idle" />
-            <span>{idleCount} idle</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pins/idle.png" alt="" style={{ width: 12, height: 14, objectFit: 'contain' }} />
+            <span>{idleCount} Idle</span>
+          </div>
+          <div className="pm-live-map-summary-pill">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pins/alert.png" alt="" style={{ width: 12, height: 14, objectFit: 'contain' }} />
+            <span>{alertCount} Alert</span>
           </div>
           <div className="pm-live-map-summary-pill pm-live-map-summary-strong">
-            <span className="pm-live-map-summary-dot status-parked" />
-            <span>{selectedVehicle.plateNumber}</span>
+            <span>{selectedVehicle?.plateNumber || 'No GPS active'}</span>
           </div>
         </div>
       </section>
@@ -478,34 +599,44 @@ export default function LiveMapPage() {
               </div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 <button
-                  className={`pm-btn pm-btn-xs ${statusFilter === 'all' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
-                  onClick={() => setStatusFilter('all')}
+                  type="button"
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'all' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter('all')}
                 >
                   All ({vehicles.length})
                 </button>
                 <button
-                  className={`pm-btn pm-btn-xs ${statusFilter === 'moving' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
-                  onClick={() => setStatusFilter('moving')}
-                >
-                  Moving ({movingCount})
-                </button>
-                <button
-                  className={`pm-btn pm-btn-xs ${statusFilter === 'idle' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
-                  onClick={() => setStatusFilter('idle')}
-                >
-                  Idle ({idleCount})
-                </button>
-                <button
                   type="button"
-                  className={`pm-btn pm-btn-xs ${statusFilter === 'parked' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
-                  onClick={() => setStatusFilter(statusFilter === 'parked' ? 'all' : 'parked')}
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'parked' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter(conditionFilter === 'parked' ? 'all' : 'parked')}
                 >
                   Parked ({parkedCount})
                 </button>
                 <button
                   type="button"
-                  className={`pm-btn pm-btn-xs ${statusFilter === 'offline' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
-                  onClick={() => setStatusFilter(statusFilter === 'offline' ? 'all' : 'offline')}
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'idle' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter(conditionFilter === 'idle' ? 'all' : 'idle')}
+                >
+                  Idle ({idleCount})
+                </button>
+                <button
+                  type="button"
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'alert' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter(conditionFilter === 'alert' ? 'all' : 'alert')}
+                >
+                  Alert ({alertCount})
+                </button>
+                <button
+                  type="button"
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'maintenance' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter(conditionFilter === 'maintenance' ? 'all' : 'maintenance')}
+                >
+                  Maint. ({maintenanceCount})
+                </button>
+                <button
+                  type="button"
+                  className={`pm-btn pm-btn-xs ${conditionFilter === 'offline' ? 'pm-btn-primary' : 'pm-btn-ghost'}`}
+                  onClick={() => setConditionFilter(conditionFilter === 'offline' ? 'all' : 'offline')}
                 >
                   Offline ({offlineCount})
                 </button>
@@ -515,13 +646,21 @@ export default function LiveMapPage() {
             {/* Vehicle List */}
             <div className="pm-card" style={{ flex: 1, overflowY: 'auto', padding: 'var(--pm-space-2)' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {filteredVehicles.map(veh => {
-                  const isSelected = selectedVehicle.id === veh.id || selectedVehicle.vehicleId === veh.vehicleId;
-                  return (
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      key={veh.id}
+                {filteredVehicles.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 'var(--pm-space-6)', color: 'var(--pm-text-secondary)' }}>
+                    <MapPin size={24} style={{ opacity: 0.3, marginBottom: 6 }} />
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>No GPS vehicles found</div>
+                    <div style={{ fontSize: '0.75rem', marginTop: 4 }}>Add a vehicle or connect GPS telematics to track live movements.</div>
+                  </div>
+                ) : (
+                  filteredVehicles.map(veh => {
+                    const isSelected = selectedVehicle && (selectedVehicle.id === veh.id || selectedVehicle.vehicleId === veh.vehicleId);
+                    const cond = getVehicleCondition(veh);
+                    return (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        key={veh.id}
                       className="pm-map-vehicle-row"
                       onClick={() => handleSelectVehicle(veh)}
                       onKeyDown={event => {
@@ -540,20 +679,32 @@ export default function LiveMapPage() {
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--pm-text)' }}>
-                          {veh.plateNumber}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/pins/${cond}.png`}
+                            alt={cond}
+                            style={{ width: 18, height: 22, objectFit: 'contain' }}
+                          />
+                          <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--pm-text)' }}>
+                            {veh.plateNumber}
+                          </span>
+                        </div>
                         <span
-                          className={`pm-badge ${
-                            veh.status === 'moving'
-                              ? 'pm-badge-success'
-                              : veh.status === 'idle'
-                              ? 'pm-badge-pending'
-                              : 'pm-badge-neutral'
+                          className={`pm-badge pm-badge-${
+                            cond === 'alert'
+                              ? 'critical'
+                              : cond === 'maintenance'
+                              ? 'pending'
+                              : cond === 'parked'
+                              ? 'resolved'
+                              : cond === 'idle'
+                              ? 'warning'
+                              : 'neutral'
                           }`}
-                          style={{ textTransform: 'capitalize' }}
+                          style={{ textTransform: 'capitalize', fontSize: '0.6875rem' }}
                         >
-                          {veh.status} {veh.status === 'moving' && `${veh.speedKmh} km/h`}
+                          {cond}
                         </span>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-secondary)', marginTop: 2 }}>
@@ -588,7 +739,7 @@ export default function LiveMapPage() {
                       </div>
                     </div>
                   );
-                })}
+                }))}
               </div>
             </div>
 
@@ -676,7 +827,7 @@ export default function LiveMapPage() {
           >
             <TrackingMap
               vehicles={mapMarkerList}
-              selectedVehicleId={selectedVehicle.vehicleId}
+              selectedVehicleId={selectedVehicle?.vehicleId || ''}
               onSelectVehicle={handleMapVehicleSelect}
               showTrail={showTrail}
               showGeofences={showGeofences}
@@ -819,62 +970,91 @@ export default function LiveMapPage() {
         </button>
 
         <div className="pm-live-map-sheet-content">
-          <article className="pm-live-map-selected">
-            <div className="pm-live-map-selected-heading">
-              <div>
-                <strong>{selectedVehicle.plateNumber}</strong>
-                <span className={`pm-live-map-selected-status status-${isPositionStale(selectedVehicle) ? 'offline' : selectedVehicle.status}`}>
-                  {isPositionStale(selectedVehicle) ? 'Offline' : selectedVehicle.status}
-                </span>
+          {selectedVehicle ? (
+            <article className="pm-live-map-selected">
+              <div className="pm-live-map-selected-heading">
+                <div>
+                  <strong>{selectedVehicle.plateNumber}</strong>
+                  <span className={`pm-live-map-selected-status status-${isPositionStale(selectedVehicle) ? 'offline' : selectedVehicle.status}`}>
+                    {isPositionStale(selectedVehicle) ? 'Offline' : selectedVehicle.status}
+                  </span>
+                </div>
+                <strong className="pm-live-map-speed">{selectedVehicle.speedKmh} <small>km/h</small></strong>
               </div>
-              <strong className="pm-live-map-speed">{selectedVehicle.speedKmh} <small>km/h</small></strong>
-            </div>
-            <div className="pm-live-map-selected-meta">
-              <span>{selectedVehicle.driverName || 'Unassigned driver'}</span>
-              <span>{isPositionStale(selectedVehicle) ? 'Out of date' : selectedVehicle.timestamp}</span>
-            </div>
-            <div className="pm-live-map-selected-address">
-              <MapPin size={15} aria-hidden="true" />
-              <span>{selectedVehicle.locationLabel}</span>
-            </div>
-            <div className="pm-live-map-actions">
-              <button type="button" className={isFollowing ? 'active' : ''} onClick={() => setIsFollowing(!isFollowing)}>
-                <Target size={17} /> Follow
-              </button>
-              <button type="button" className={showTrail ? 'active' : ''} onClick={() => setShowTrail(!showTrail)}>
-                <Route size={17} /> Trail
-              </button>
-              {selectedDriverPhone ? (
-                <a href={`tel:${selectedDriverPhone}`}>
-                  <Phone size={17} /> Call
-                </a>
-              ) : (
-                <button type="button" disabled>
-                  <Phone size={17} /> Call
+              <div className="pm-live-map-selected-meta">
+                <span>{selectedVehicle.driverName || 'Unassigned driver'}</span>
+                <span>{isPositionStale(selectedVehicle) ? 'Out of date' : selectedVehicle.timestamp}</span>
+              </div>
+              <div className="pm-live-map-selected-address">
+                <MapPin size={15} aria-hidden="true" />
+                <span>{selectedVehicle.locationLabel}</span>
+              </div>
+              <div className="pm-live-map-actions">
+                <button type="button" className={isFollowing ? 'active' : ''} onClick={() => setIsFollowing(!isFollowing)}>
+                  <Target size={17} /> Follow
                 </button>
-              )}
-              <Link href={`/incidents?vehicleId=${encodeURIComponent(selectedVehicle.vehicleId)}`}>
-                <AlertTriangle size={17} /> Report
-              </Link>
+                <button type="button" className={showTrail ? 'active' : ''} onClick={() => setShowTrail(!showTrail)}>
+                  <Route size={17} /> Trail
+                </button>
+                {selectedDriverPhone ? (
+                  <a href={`tel:${selectedDriverPhone}`}>
+                    <Phone size={17} /> Call
+                  </a>
+                ) : (
+                  <button type="button" disabled>
+                    <Phone size={17} /> Call
+                  </button>
+                )}
+                <Link href={`/incidents?vehicleId=${encodeURIComponent(selectedVehicle.vehicleId)}`}>
+                  <AlertTriangle size={17} /> Report
+                </Link>
+              </div>
+            </article>
+          ) : (
+            <div style={{ textAlign: 'center', padding: 'var(--pm-space-4)', color: 'var(--pm-text-secondary)', fontSize: '0.8125rem' }}>
+              No GPS-tracked vehicle active
             </div>
-          </article>
+          )}
 
           <div className="pm-live-map-sheet-list" aria-label="Vehicles">
-            {filteredVehicles.map(vehicle => (
-              <button
-                key={vehicle.id}
-                type="button"
-                className={`pm-live-map-list-row ${vehicle.id === selectedVehicle.id ? 'selected' : ''}`}
-                onClick={() => handleSelectVehicle(vehicle)}
-              >
-                <span className={`pm-live-map-status-dot status-${isPositionStale(vehicle) ? 'offline' : vehicle.status}`} />
-                <span className="pm-live-map-list-main">
-                  <strong>{vehicle.plateNumber}</strong>
-                  <small>{vehicle.driverName || 'Unassigned'} · {vehicle.timestamp}</small>
-                </span>
-                <span className="pm-live-map-list-speed">{vehicle.speedKmh} km/h</span>
-              </button>
-            ))}
+            {filteredVehicles.map(vehicle => {
+              const cond = getVehicleCondition(vehicle);
+              return (
+                <button
+                  key={vehicle.id}
+                  type="button"
+                  className={`pm-live-map-list-row ${vehicle.id === selectedVehicle?.id ? 'selected' : ''}`}
+                  onClick={() => handleSelectVehicle(vehicle)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/pins/${cond}.png`}
+                    alt={cond}
+                    style={{ width: 20, height: 24, objectFit: 'contain', flexShrink: 0 }}
+                  />
+                  <span className="pm-live-map-list-main">
+                    <strong>{vehicle.plateNumber}</strong>
+                    <small>{vehicle.driverName || 'Unassigned'} · {vehicle.timestamp}</small>
+                  </span>
+                  <span
+                    className={`pm-badge pm-badge-${
+                      cond === 'alert'
+                        ? 'critical'
+                        : cond === 'maintenance'
+                        ? 'pending'
+                        : cond === 'parked'
+                        ? 'resolved'
+                        : cond === 'idle'
+                        ? 'warning'
+                        : 'neutral'
+                    }`}
+                    style={{ textTransform: 'capitalize', fontSize: '0.6875rem' }}
+                  >
+                    {cond}
+                  </span>
+                </button>
+              );
+            })}
             {filteredVehicles.length === 0 && <p className="pm-live-map-empty">No vehicles match this search.</p>}
           </div>
         </div>
@@ -917,7 +1097,7 @@ export default function LiveMapPage() {
             >
               <div>
                 <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-                  Historical Route Playback: {selectedVehicle.plateNumber}
+                  Historical Route Playback: {selectedVehicle?.plateNumber || 'Vehicle'}
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
                   Corridor: Tema Ashaiman to Accra Commercial Hub (Today 06:00 to 18:00)

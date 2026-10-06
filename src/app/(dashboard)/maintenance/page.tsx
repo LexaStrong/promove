@@ -4,23 +4,24 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, Wrench, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { formatPesewas } from '@/lib/types';
-import { mockMaintenanceSchedules, mockMaintenanceRecords, mockVehicles } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function MaintenancePage() {
+  const { maintenanceSchedules, maintenanceRecords, vehicles, isDemo } = useFleet();
   const [tab, setTab] = useState<'schedules' | 'records'>('schedules');
   const [showAddModal, setShowAddModal] = useState(false);
 
-  const overdueSchedules = mockMaintenanceSchedules.filter(
+  const overdueSchedules = maintenanceSchedules.filter(
     s => s.next_due_on && new Date(s.next_due_on) < new Date()
   );
-  const upcomingSchedules = mockMaintenanceSchedules.filter(
+  const upcomingSchedules = maintenanceSchedules.filter(
     s => s.next_due_on && new Date(s.next_due_on) >= new Date()
   );
-  const kmSchedules = mockMaintenanceSchedules.filter(
+  const kmSchedules = maintenanceSchedules.filter(
     s => !s.next_due_on && s.next_due_km
   );
 
-  const totalCost = mockMaintenanceRecords.reduce((s, r) => s + (r.cost_pesewas || 0), 0);
+  const totalCost = maintenanceRecords.reduce((s, r) => s + (r.cost_pesewas || 0), 0);
 
   return (
     <div>
@@ -47,7 +48,7 @@ export default function MaintenancePage() {
         </div>
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Records</div>
-          <div className="pm-stat-value">{mockMaintenanceRecords.length}</div>
+          <div className="pm-stat-value">{maintenanceRecords.length}</div>
         </div>
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Total Spent</div>
@@ -57,10 +58,10 @@ export default function MaintenancePage() {
 
       <div className="pm-tabs">
         <button className={`pm-tab ${tab === 'schedules' ? 'active' : ''}`} onClick={() => setTab('schedules')}>
-          Schedules ({mockMaintenanceSchedules.length})
+          Schedules ({maintenanceSchedules.length})
         </button>
         <button className={`pm-tab ${tab === 'records' ? 'active' : ''}`} onClick={() => setTab('records')}>
-          History ({mockMaintenanceRecords.length})
+          History ({maintenanceRecords.length})
         </button>
       </div>
 
@@ -155,6 +156,14 @@ export default function MaintenancePage() {
               ))}
             </div>
           )}
+
+          {maintenanceSchedules.length === 0 && (
+            <div className="pm-empty">
+              <div className="pm-empty-icon"><Wrench size={24} /></div>
+              <div className="pm-empty-title">No maintenance schedules</div>
+              <div className="pm-empty-desc">Create your first service schedule to track routine inspections and maintenance intervals.</div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="pm-table-wrapper">
@@ -170,10 +179,10 @@ export default function MaintenancePage() {
               </tr>
             </thead>
             <tbody>
-              {mockMaintenanceRecords.map(r => (
+              {maintenanceRecords.map(r => (
                 <tr key={r.id}>
                   <td>{r.performed_on}</td>
-                  <td style={{ fontWeight: 500 }}>{r.vehicle?.plate_number}</td>
+                  <td style={{ fontWeight: 500 }}>{r.vehicle?.plate_number || 'Fleet Vehicle'}</td>
                   <td style={{ maxWidth: 300 }}>{r.description}</td>
                   <td style={{ color: 'var(--pm-text-secondary)' }}>{r.workshop || '-'}</td>
                   <td style={{ textAlign: 'right', color: 'var(--pm-text-secondary)' }}>
@@ -186,6 +195,14 @@ export default function MaintenancePage() {
               ))}
             </tbody>
           </table>
+
+          {maintenanceRecords.length === 0 && (
+            <div className="pm-empty">
+              <div className="pm-empty-icon"><Wrench size={24} /></div>
+              <div className="pm-empty-title">No maintenance history recorded</div>
+              <div className="pm-empty-desc">Log oil changes, tyre replacements, and brake repairs to track operating expenses.</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -202,7 +219,7 @@ export default function MaintenancePage() {
                   <label className="pm-label">Vehicle</label>
                   <select className="pm-select">
                     <option value="">Select vehicle</option>
-                    {mockVehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number} ({v.make} {v.model})</option>)}
                   </select>
                 </div>
                 {tab === 'schedules' ? (

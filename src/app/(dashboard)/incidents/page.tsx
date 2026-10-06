@@ -3,20 +3,61 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Plus, AlertTriangle, Search } from 'lucide-react';
-import { mockIncidents, mockVehicles, mockDrivers } from '@/lib/mock-data';
-import { IncidentStatus } from '@/lib/types';
+import { IncidentStatus, IncidentType, Severity } from '@/lib/types';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function IncidentsPage() {
+  const { incidents, vehicles, drivers, addIncident } = useFleet();
   const [statusFilter, setStatusFilter] = useState<IncidentStatus | ''>('');
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [formData, setFormData] = useState<{
+    vehicle_id: string;
+    driver_id: string;
+    incident_type: IncidentType;
+    severity: Severity;
+    description: string;
+    location_text: string;
+  }>({
+    vehicle_id: '',
+    driver_id: '',
+    incident_type: 'breakdown',
+    severity: 'medium',
+    description: '',
+    location_text: '',
+  });
 
-  const filtered = mockIncidents.filter(i => {
+  const filtered = incidents.filter(i => {
     if (statusFilter && i.status !== statusFilter) return false;
-    if (search && !`${i.vehicle?.plate_number} ${i.driver?.full_name} ${i.description} ${i.location_text || ''}`
+    if (search && !`${i.vehicle?.plate_number || ''} ${i.driver?.full_name || ''} ${i.description} ${i.location_text || ''}`
       .toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  const handleReportSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.vehicle_id) {
+      alert('Please select a vehicle');
+      return;
+    }
+    addIncident({
+      vehicle_id: formData.vehicle_id,
+      driver_id: formData.driver_id || null,
+      incident_type: formData.incident_type,
+      severity: formData.severity,
+      description: formData.description,
+      location_text: formData.location_text || null,
+    });
+    setFormData({
+      vehicle_id: '',
+      driver_id: '',
+      incident_type: 'breakdown',
+      severity: 'medium',
+      description: '',
+      location_text: '',
+    });
+    setShowAddModal(false);
+  };
 
   const severityColor = (s: string) => {
     switch (s) {
@@ -43,24 +84,24 @@ export default function IncidentsPage() {
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Open</div>
           <div className="pm-stat-value" style={{ color: 'var(--pm-error)' }}>
-            {mockIncidents.filter(i => i.status === 'open').length}
+            {incidents.filter(i => i.status === 'open').length}
           </div>
         </div>
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">In Progress</div>
           <div className="pm-stat-value" style={{ color: 'var(--pm-warning)' }}>
-            {mockIncidents.filter(i => i.status === 'in_progress').length}
+            {incidents.filter(i => i.status === 'in_progress').length}
           </div>
         </div>
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Resolved</div>
           <div className="pm-stat-value" style={{ color: 'var(--pm-success)' }}>
-            {mockIncidents.filter(i => i.status === 'resolved').length}
+            {incidents.filter(i => i.status === 'resolved').length}
           </div>
         </div>
         <div className="pm-card pm-stat">
           <div className="pm-stat-label">Total</div>
-          <div className="pm-stat-value">{mockIncidents.length}</div>
+          <div className="pm-stat-value">{incidents.length}</div>
         </div>
       </div>
 
@@ -157,59 +198,91 @@ export default function IncidentsPage() {
               <h3>Report Incident</h3>
               <button className="pm-btn pm-btn-ghost pm-btn-icon" onClick={() => setShowAddModal(false)}>×</button>
             </div>
-            <div className="pm-modal-body">
-              <div className="pm-form-group">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Vehicle</label>
-                    <select className="pm-select">
-                      <option value="">Select vehicle</option>
-                      {mockVehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
-                    </select>
+            <form onSubmit={handleReportSubmit}>
+              <div className="pm-modal-body">
+                <div className="pm-form-group">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Vehicle</label>
+                      <select
+                        className="pm-select"
+                        required
+                        value={formData.vehicle_id}
+                        onChange={e => setFormData({ ...formData, vehicle_id: e.target.value })}
+                      >
+                        <option value="">Select vehicle</option>
+                        {vehicles.map(v => <option key={v.id} value={v.id}>{v.plate_number}</option>)}
+                      </select>
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Driver</label>
+                      <select
+                        className="pm-select"
+                        value={formData.driver_id}
+                        onChange={e => setFormData({ ...formData, driver_id: e.target.value })}
+                      >
+                        <option value="">Select driver</option>
+                        {drivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Type</label>
+                      <select
+                        className="pm-select"
+                        value={formData.incident_type}
+                        onChange={e => setFormData({ ...formData, incident_type: e.target.value as IncidentType })}
+                      >
+                        <option value="breakdown">Breakdown</option>
+                        <option value="accident">Accident</option>
+                        <option value="delay">Delay</option>
+                        <option value="theft">Theft</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="pm-input-group">
+                      <label className="pm-label">Severity</label>
+                      <select
+                        className="pm-select"
+                        value={formData.severity}
+                        onChange={e => setFormData({ ...formData, severity: e.target.value as Severity })}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="pm-input-group">
-                    <label className="pm-label">Driver</label>
-                    <select className="pm-select">
-                      <option value="">Select driver</option>
-                      {mockDrivers.map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--pm-space-4)' }}>
-                  <div className="pm-input-group">
-                    <label className="pm-label">Type</label>
-                    <select className="pm-select">
-                      <option value="breakdown">Breakdown</option>
-                      <option value="accident">Accident</option>
-                      <option value="delay">Delay</option>
-                      <option value="theft">Theft</option>
-                      <option value="other">Other</option>
-                    </select>
+                    <label className="pm-label">Description</label>
+                    <textarea
+                      className="pm-textarea"
+                      placeholder="What happened?"
+                      rows={3}
+                      required
+                      value={formData.description}
+                      onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    />
                   </div>
                   <div className="pm-input-group">
-                    <label className="pm-label">Severity</label>
-                    <select className="pm-select">
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="critical">Critical</option>
-                    </select>
+                    <label className="pm-label">Location</label>
+                    <input
+                      type="text"
+                      className="pm-input"
+                      placeholder="e.g. Kaneshie, Accra"
+                      value={formData.location_text}
+                      onChange={e => setFormData({ ...formData, location_text: e.target.value })}
+                    />
                   </div>
-                </div>
-                <div className="pm-input-group">
-                  <label className="pm-label">Description</label>
-                  <textarea className="pm-textarea" placeholder="What happened?" rows={3} />
-                </div>
-                <div className="pm-input-group">
-                  <label className="pm-label">Location</label>
-                  <input type="text" className="pm-input" placeholder="e.g. Kaneshie, Accra" />
                 </div>
               </div>
-            </div>
-            <div className="pm-modal-footer">
-              <button className="pm-btn pm-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="pm-btn pm-btn-primary" onClick={() => setShowAddModal(false)}>Report</button>
-            </div>
+              <div className="pm-modal-footer">
+                <button type="button" className="pm-btn pm-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                <button type="submit" className="pm-btn pm-btn-primary">Report</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

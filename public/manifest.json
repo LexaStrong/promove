@@ -1,8 +1,8 @@
 {
   "name": "ProMove Fleet Management",
   "short_name": "ProMove",
-  "description": "Digital fleet management and driver shift portal for Ghana.",
-  "start_url": "/driver-app",
+  "description": "Digital fleet management and operations portal for Ghana.",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#0B4F6C",

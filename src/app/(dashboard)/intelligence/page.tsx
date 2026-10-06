@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   TrendingUp,
   Fuel,
@@ -17,7 +18,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { formatPesewas } from '@/lib/types';
-import { mockVehicles, mockDrivers } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 
 interface FuelAnomaly {
   id: string;
@@ -172,8 +173,51 @@ const mockPredictions: MaintenancePrediction[] = [
 ];
 
 export default function FleetIntelligencePage() {
+  const { isDemo, vehicles } = useFleet();
   const [activeTab, setActiveTab] = useState<'fuel' | 'drivers' | 'maintenance'>('fuel');
   const [search, setSearch] = useState('');
+
+  if (!isDemo && vehicles.length === 0) {
+    return (
+      <div>
+        <div className="pm-page-header">
+          <div>
+            <h1 className="pm-page-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Sparkles size={22} color="var(--pm-blue-600)" /> Fleet Intelligence & Telematics AI
+            </h1>
+            <p className="pm-page-subtitle">
+              Predictive maintenance, driver scorecard metrics, and AI fuel anomaly analysis
+            </p>
+          </div>
+        </div>
+
+        <div className="pm-card" style={{ padding: 'var(--pm-space-8)', textAlign: 'center', maxWidth: 640, margin: 'var(--pm-space-8) auto' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 'var(--pm-radius-full)',
+            background: 'var(--pm-blue-50)', color: 'var(--pm-blue-600)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto var(--pm-space-4)'
+          }}>
+            <Sparkles size={32} />
+          </div>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--pm-space-2)' }}>
+            Intelligence Engine Ready
+          </h2>
+          <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: 'var(--pm-space-6)' }}>
+            Predictive telemetry, driver compliance scoring, and automated fuel siphon detection will populate as your fleet logs operational data.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Link href="/vehicles" className="pm-btn pm-btn-primary">
+              Add Fleet Vehicle
+            </Link>
+            <Link href="/dashboard?demo=true" className="pm-btn pm-btn-secondary">
+              Explore Demo Intelligence
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>

@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { useUser, useClerk } from '@clerk/nextjs';
 import { User, Organization, Role } from './types';
 import { mockCurrentUser, mockOrg, mockUsers } from './mock-data';
+import { FLEET_STORAGE_BASE, fleetKey, purgeLegacyFleetKeys } from './fleet-storage';
 
 interface AuthState {
   user: User | null;
@@ -77,16 +79,81 @@ const DEMO_USERS_BY_ROLE: Record<Role, { user: User; role: Role }> = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: mockCurrentUser,
-    org: mockOrg,
+  const { user: clerkUser, isLoaded, isSignedIn } = useUser();
+  const clerk = useClerk();
+
+  const [localDemoState, setLocalDemoState] = useState<AuthState>({
+    user: null,
+    org: null,
     role: 'owner',
-    isAuthenticated: true,
-    totpEnabled: true,
+    isAuthenticated: false,
+    totpEnabled: false,
   });
 
+  // Fleet data is scoped per user (see fleet-storage.ts), so a new Clerk user
+  // automatically starts with an empty workspace. Just drop legacy shared keys.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isLoaded || !isSignedIn || !clerkUser) return;
+    localStorage.setItem('promove_active_clerk_user', clerkUser.id);
+    purgeLegacyFleetKeys();
+  }, [isLoaded, isSignedIn, clerkUser]);
+
+  // If signed in with Clerk, derive identity from Clerk user
+  const state = useMemo<AuthState>(() => {
+    if (isLoaded && isSignedIn && clerkUser) {
+      const clerkRole = (clerkUser.publicMetadata?.role as Role) || localDemoState.role || 'owner';
+      
+      let registeredOrgName = '';
+      if (typeof window !== 'undefined') {
+        try {
+          const fleetInfo = localStorage.getItem(fleetKey(FLEET_STORAGE_BASE.FLEET_INFO, clerkUser.id));
+          if (fleetInfo) {
+            const parsed = JSON.parse(fleetInfo);
+            // Strictly exclude leftover mock organization names
+            if (parsed.orgName && parsed.orgName !== 'Twum Transport Services') {
+              registeredOrgName = parsed.orgName;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const defaultOrgName = clerkUser.fullName
+        ? `${clerkUser.fullName}'s Fleet`
+        : 'New Fleet Workspace';
+
+      const userOrg: Organization = {
+        id: `org-${clerkUser.id}`,
+        name: registeredOrgName || defaultOrgName,
+        phone: clerkUser.primaryPhoneNumber?.phoneNumber || '',
+        region: 'Greater Accra',
+        currency: 'GHS',
+        timezone: 'Africa/Accra',
+        status: 'active',
+        created_at: new Date().toISOString(),
+      };
+
+      return {
+        user: {
+          id: clerkUser.id,
+          email: clerkUser.primaryEmailAddress?.emailAddress || null,
+          phone: clerkUser.primaryPhoneNumber?.phoneNumber || '',
+          full_name: clerkUser.fullName || clerkUser.firstName || clerkUser.primaryEmailAddress?.emailAddress?.split('@')[0] || 'Fleet Owner',
+          is_platform_admin: clerkRole === 'platform_admin',
+          is_active: true,
+          last_login_at: clerkUser.lastSignInAt ? new Date(clerkUser.lastSignInAt).toISOString() : new Date().toISOString(),
+        },
+        org: userOrg,
+        role: clerkRole,
+        isAuthenticated: true,
+        totpEnabled: clerkUser.twoFactorEnabled ?? false,
+      };
+    }
+    return localDemoState;
+  }, [isLoaded, isSignedIn, clerkUser, localDemoState]);
+
   const login = useCallback(async (phone: string, _password: string, _totpCode?: string): Promise<boolean> => {
-    // Detect demo role from phone
     let selected = DEMO_USERS_BY_ROLE.owner;
     if (phone.includes('234567')) {
       selected = DEMO_USERS_BY_ROLE.manager;
@@ -98,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       selected = DEMO_USERS_BY_ROLE.platform_admin;
     }
 
-    setState(prev => ({
+    setLocalDemoState(prev => ({
       ...prev,
       user: selected.user,
       org: mockOrg,
@@ -109,12 +176,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    setState(prev => ({ ...prev, user: null, org: null, isAuthenticated: false }));
-  }, []);
+    if (isSignedIn) {
+      clerk.signOut();
+    }
+    setLocalDemoState(prev => ({ ...prev, user: null, org: null, isAuthenticated: false }));
+  }, [isSignedIn, clerk]);
 
   const switchRole = useCallback((role: Role) => {
     const config = DEMO_USERS_BY_ROLE[role];
-    setState(prev => ({
+    setLocalDemoState(prev => ({
       ...prev,
       role: config.role,
       user: config.user,
@@ -123,7 +193,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleTotp = useCallback(() => {
-    setState(prev => ({ ...prev, totpEnabled: !prev.totpEnabled }));
+    setLocalDemoState(prev => ({ ...prev, totpEnabled: !prev.totpEnabled }));
   }, []);
 
   return (

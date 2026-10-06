@@ -1,726 +1,441 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Car, Plus, Fuel, AlertTriangle, ArrowUpRight, ArrowDownRight,
-  Wifi, WifiOff, RefreshCw, CheckCircle2, Clock, Camera,
-  MapPin, ShieldAlert, ArrowLeft, LogOut, Phone
+  Navigation, Radio, Battery, AlertTriangle, ShieldCheck,
+  CheckCircle2, Compass, MapPin, Gauge, Pause, Play, ArrowLeft, RefreshCw, Smartphone
 } from 'lucide-react';
-import { formatPesewas } from '@/lib/types';
+import { useFleet } from '@/lib/fleet-context';
+import { ghanaCorridorGeofences } from '@/lib/gps/telemetry-hub';
+import { traccarAdapter } from '@/lib/gps/traccar-adapter';
 
-interface OfflineQueueItem {
-  id: string;
-  type: 'income' | 'expense' | 'incident';
-  title: string;
-  amount_pesewas?: number;
-  time: string;
-  status: 'synced' | 'pending';
+interface OfflinePing {
+  latitude: number;
+  longitude: number;
+  speedKmh: number;
+  courseHeading?: number;
+  timestamp: string;
 }
 
 export default function DriverAppPage() {
-  const [isOnline, setIsOnline] = useState(true);
-  const [syncing, setSyncing] = useState(false);
+  const { vehicles, drivers, isDemo } = useFleet();
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [currentSpeed, setCurrentSpeed] = useState(0);
+  const [currentHeading, setCurrentHeading] = useState(0);
+  const [currentCoords, setCurrentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
+  const [batteryLevel, setBatteryLevel] = useState<number>(95);
+  const [activeGeofence, setActiveGeofence] = useState<string | null>(null);
+  const [lastPingTime, setLastPingTime] = useState<string | null>(null);
+  const [pingCount, setPingCount] = useState(0);
+  const [offlineQueue, setOfflineQueue] = useState<OfflinePing[]>([]);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
-  // Active Modals
-  const [activeModal, setActiveModal] = useState<'income' | 'expense' | 'fault' | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const offlineQueueRef = useRef<OfflinePing[]>([]);
+  offlineQueueRef.current = offlineQueue;
 
-  // Form states
-  const [incomeAmount, setIncomeAmount] = useState('');
-  const [incomeMethod, setIncomeMethod] = useState<'cash' | 'momo_manual'>('cash');
-  const [incomeNotes, setIncomeNotes] = useState('');
+  // Auto-select first available vehicle
+  useEffect(() => {
+    if (vehicles.length > 0 && !selectedVehicleId) {
+      setSelectedVehicleId(vehicles[0].id);
+    }
+  }, [vehicles, selectedVehicleId]);
 
-  const [expenseType, setExpenseType] = useState<'fuel' | 'toll' | 'repair' | 'other'>('fuel');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [fuelLitres, setFuelLitres] = useState('');
-  const [fuelStation, setFuelStation] = useState('Goil');
+  const selectedVehicle = vehicles.find(v => v.id === selectedVehicleId) || vehicles[0];
 
-  const [faultType, setFaultType] = useState('puncture');
-  const [faultLocation, setFaultLocation] = useState('Near Kwame Nkrumah Circle');
-  const [faultSeverity, setFaultSeverity] = useState<'low' | 'medium' | 'high'>('medium');
-  const [faultNotes, setFaultNotes] = useState('');
+  // Battery API detection
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'getBattery' in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        setBatteryLevel(Math.round(battery.level * 100));
+        battery.addEventListener('levelchange', () => {
+          setBatteryLevel(Math.round(battery.level * 100));
+        });
+      }).catch(() => {});
+    }
+  }, []);
 
-  // Shift entries
-  const [entries, setEntries] = useState<OfflineQueueItem[]>([
-    {
-      id: 'd-1',
-      type: 'income',
-      title: 'Morning Shift Fare Collection',
-      amount_pesewas: 18000,
-      time: '08:30 AM',
-      status: 'synced',
-    },
-    {
-      id: 'd-2',
-      type: 'expense',
-      title: 'Goil Fuel Top-up (15L)',
-      amount_pesewas: 18500,
-      time: '09:15 AM',
-      status: 'synced',
-    },
-    {
-      id: 'd-3',
-      type: 'income',
-      title: 'Accra - Tema Roundtrip Collection',
-      amount_pesewas: 22000,
-      time: '12:45 PM',
-      status: 'synced',
-    },
-  ]);
-
-  const pendingCount = entries.filter(e => e.status === 'pending').length;
-
-  const handleSyncAll = () => {
-    setSyncing(true);
-    setTimeout(() => {
-      setEntries(prev => prev.map(e => ({ ...e, status: 'synced' as const })));
-      setSyncing(false);
-    }, 1200);
-  };
-
-  const handleLogIncome = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountVal = parseFloat(incomeAmount);
-    if (!amountVal || isNaN(amountVal)) return;
-
-    const newEntry: OfflineQueueItem = {
-      id: `inc-${Date.now()}`,
-      type: 'income',
-      title: `Sales Collection (${incomeMethod === 'cash' ? 'Cash' : 'MoMo'})`,
-      amount_pesewas: Math.round(amountVal * 100),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: isOnline ? 'synced' : 'pending',
+  // Transmit location ping to ProMove telematics hub
+  const sendPing = useCallback(async (lat: number, lng: number, speed: number, heading: number, batt: number) => {
+    const payload = {
+      vehicleId: selectedVehicle?.id || 'live-mobile',
+      plateNumber: selectedVehicle?.plate_number || 'Mobile GPS',
+      latitude: lat,
+      longitude: lng,
+      speedKmh: speed,
+      courseHeading: heading,
+      batteryPercentage: batt,
+      timestamp: new Date().toISOString(),
     };
 
-    setEntries(prev => [newEntry, ...prev]);
-    setIncomeAmount('');
-    setIncomeNotes('');
-    setActiveModal(null);
+    try {
+      const res = await fetch('/api/gps/telemetry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        setLastPingTime(new Date().toLocaleTimeString('en-GH'));
+        setPingCount(prev => prev + 1);
+
+        // Flush queued offline items if any
+        if (offlineQueueRef.current.length > 0) {
+          const queueToFlush = [...offlineQueueRef.current];
+          setOfflineQueue([]);
+          for (const item of queueToFlush) {
+            await fetch('/api/gps/telemetry', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...payload, ...item }),
+            }).catch(() => {});
+          }
+        }
+      } else {
+        // Enqueue offline ping
+        setOfflineQueue(prev => [...prev.slice(-49), { latitude: lat, longitude: lng, speedKmh: speed, timestamp: new Date().toISOString() }]);
+      }
+    } catch {
+      // Network drop: store in offline queue for corridor dead zones
+      setOfflineQueue(prev => [...prev.slice(-49), { latitude: lat, longitude: lng, speedKmh: speed, timestamp: new Date().toISOString() }]);
+    }
+  }, [selectedVehicle]);
+
+  // Start / Stop High-Accuracy Geolocation Tracker
+  const handleToggleBroadcast = () => {
+    if (isBroadcasting) {
+      // Stop tracking
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      setIsBroadcasting(false);
+      setCurrentSpeed(0);
+    } else {
+      // Start high-accuracy tracking
+      if (!('geolocation' in navigator)) {
+        setGpsError('Geolocation is not supported by this browser.');
+        return;
+      }
+
+      setGpsError(null);
+      setIsBroadcasting(true);
+
+      const id = navigator.geolocation.watchPosition(
+        position => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const rawSpeed = position.coords.speed; // meters per second
+          const speedKmh = rawSpeed !== null && rawSpeed > 0 ? Math.round(rawSpeed * 3.6) : 0;
+          const heading = position.coords.heading !== null && !isNaN(position.coords.heading) ? Math.round(position.coords.heading) : 0;
+          const acc = position.coords.accuracy ? Math.round(position.coords.accuracy) : null;
+
+          setCurrentCoords({ lat, lng });
+          setCurrentSpeed(speedKmh);
+          setCurrentHeading(heading);
+          setAccuracy(acc);
+
+          // Check Ghana corridor geofences
+          const gfCheck = traccarAdapter.checkGeofences(lat, lng, ghanaCorridorGeofences);
+          const currentGf = gfCheck.find(g => g.isInside);
+          setActiveGeofence(currentGf ? currentGf.geofence.name : null);
+
+          // Dispatch ping to server
+          sendPing(lat, lng, speedKmh, heading, batteryLevel);
+        },
+        err => {
+          console.warn('Geolocation tracking notice:', err.message);
+          setGpsError(err.message || 'Unable to retrieve high-accuracy GPS fix.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 0,
+        }
+      );
+
+      watchIdRef.current = id;
+    }
   };
 
-  const handleLogExpense = (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountVal = parseFloat(expenseAmount);
-    if (!amountVal || isNaN(amountVal)) return;
-
-    const label = expenseType === 'fuel'
-      ? `${fuelStation} Fuel (${fuelLitres || '0'}L)`
-      : `Expense: ${expenseType.toUpperCase()}`;
-
-    const newEntry: OfflineQueueItem = {
-      id: `exp-${Date.now()}`,
-      type: 'expense',
-      title: label,
-      amount_pesewas: Math.round(amountVal * 100),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: isOnline ? 'synced' : 'pending',
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current !== null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
     };
+  }, []);
 
-    setEntries(prev => [newEntry, ...prev]);
-    setExpenseAmount('');
-    setFuelLitres('');
-    setActiveModal(null);
-  };
-
-  const handleReportFault = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newEntry: OfflineQueueItem = {
-      id: `flt-${Date.now()}`,
-      type: 'incident',
-      title: `Reported ${faultType.toUpperCase()} at ${faultLocation}`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      status: isOnline ? 'synced' : 'pending',
-    };
-
-    setEntries(prev => [newEntry, ...prev]);
-    setFaultNotes('');
-    setActiveModal(null);
-  };
-
-  // Calculations
-  const totalIncomePesewas = entries
-    .filter(e => e.type === 'income')
-    .reduce((sum, e) => sum + (e.amount_pesewas || 0), 0);
-
-  const totalExpensePesewas = entries
-    .filter(e => e.type === 'expense')
-    .reduce((sum, e) => sum + (e.amount_pesewas || 0), 0);
-
-  const netPesewas = totalIncomePesewas - totalExpensePesewas;
+  const isOverspeed = currentSpeed > 80;
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'var(--pm-bg-subtle)',
-      display: 'flex',
-      flexDirection: 'column',
-      maxWidth: 520,
-      margin: '0 auto',
-      boxShadow: 'var(--pm-shadow-md)',
-      position: 'relative',
+      background: 'linear-gradient(180deg, #091924 0%, #061118 100%)',
+      color: '#FFFFFF',
+      fontFamily: 'system-ui, -apple-system, sans-serif',
+      paddingBottom: 40,
     }}>
-      {/* Top Mobile Bar */}
-      <div style={{
-        background: 'var(--pm-blue-700)',
-        color: '#FFFFFF',
-        padding: 'var(--pm-space-4) var(--pm-space-5)',
+      {/* Top Header */}
+      <header style={{
+        padding: '16px 20px',
+        borderBottom: '1px solid #133246',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#061118',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 'var(--pm-radius-full)',
-              background: 'rgba(255, 255, 255, 0.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontWeight: 700, fontSize: '0.875rem'
-            }}>
-              KA
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>Kwame Asante</div>
-              <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Assigned Driver</div>
-            </div>
-          </div>
-
-          {/* Online/Offline Toggle */}
-          <button
-            type="button"
-            onClick={() => setIsOnline(!isOnline)}
-            style={{
-              background: isOnline ? 'rgba(45, 138, 86, 0.3)' : 'rgba(232, 99, 74, 0.3)',
-              border: `1px solid ${isOnline ? 'var(--pm-success)' : 'var(--pm-error)'}`,
-              color: '#FFFFFF',
-              borderRadius: 'var(--pm-radius-full)',
-              padding: '4px 10px',
-              fontSize: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              cursor: 'pointer',
-            }}
-          >
-            {isOnline ? <Wifi size={14} /> : <WifiOff size={14} />}
-            <span>{isOnline ? 'Online' : 'Offline'}</span>
-          </button>
-        </div>
-
-        {/* Assigned Vehicle Card */}
-        <div style={{
-          background: 'rgba(255, 255, 255, 0.1)',
-          borderRadius: 'var(--pm-radius-md)',
-          padding: 'var(--pm-space-3) var(--pm-space-4)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Current Vehicle</div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '0.02em' }}>
-              GR 1234-22
-            </div>
-            <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>
-              Toyota HiAce (Trotro) • Accra - Tema
-            </div>
-          </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Daily Target</div>
-            <div style={{ fontWeight: 700, fontSize: '0.9375rem' }}>GH₵ 350.00</div>
-            <div style={{ fontSize: '0.6875rem', opacity: 0.85 }}>20% Commission</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sync Status Banner if offline or pending */}
-      {(!isOnline || pendingCount > 0) && (
-        <div style={{
-          background: isOnline ? 'var(--pm-warning-light)' : 'var(--pm-error-light)',
-          color: isOnline ? 'var(--pm-warning)' : 'var(--pm-error)',
-          padding: '8px var(--pm-space-4)',
-          fontSize: '0.8125rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: '1px solid var(--pm-border)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isOnline ? <Clock size={15} /> : <WifiOff size={15} />}
-            <span>{pendingCount} records waiting to sync</span>
-          </div>
-          {isOnline && pendingCount > 0 && (
-            <button
-              onClick={handleSyncAll}
-              disabled={syncing}
-              className="pm-btn pm-btn-secondary pm-btn-sm"
-              style={{ height: 26, fontSize: '0.75rem', padding: '0 8px' }}
-            >
-              <RefreshCw size={12} className={syncing ? 'pm-spin' : ''} />
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Main Body */}
-      <div style={{ padding: 'var(--pm-space-4)', flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-        {/* Shift Money Summary */}
-        <div className="pm-card" style={{ padding: 'var(--pm-space-4)' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-            Today&apos;s Shift Totals
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, textAlign: 'center' }}>
-            <div style={{ background: 'var(--pm-bg-subtle)', padding: 8, borderRadius: 'var(--pm-radius-md)' }}>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--pm-text-secondary)' }}>Income</div>
-              <div style={{ fontWeight: 700, color: 'var(--pm-success)', fontSize: '0.9375rem', marginTop: 2 }}>
-                {formatPesewas(totalIncomePesewas)}
-              </div>
-            </div>
-            <div style={{ background: 'var(--pm-bg-subtle)', padding: 8, borderRadius: 'var(--pm-radius-md)' }}>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--pm-text-secondary)' }}>Expenses</div>
-              <div style={{ fontWeight: 700, color: 'var(--pm-error)', fontSize: '0.9375rem', marginTop: 2 }}>
-                {formatPesewas(totalExpensePesewas)}
-              </div>
-            </div>
-            <div style={{ background: 'var(--pm-bg-subtle)', padding: 8, borderRadius: 'var(--pm-radius-md)' }}>
-              <div style={{ fontSize: '0.6875rem', color: 'var(--pm-text-secondary)' }}>Net Handover</div>
-              <div style={{ fontWeight: 700, color: 'var(--pm-blue-600)', fontSize: '0.9375rem', marginTop: 2 }}>
-                {formatPesewas(netPesewas)}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Big Tactile Action Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-3)' }}>
-          <button
-            onClick={() => setActiveModal('income')}
-            className="pm-btn"
-            style={{
-              padding: '16px',
-              background: 'var(--pm-success)',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderRadius: 'var(--pm-radius-lg)',
-              boxShadow: 'var(--pm-shadow-sm)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 'var(--pm-radius-md)',
-                background: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <ArrowUpRight size={22} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, fontSize: '1.0625rem' }}>Log Daily Sales / Income</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Record cash or MoMo fares received</div>
-              </div>
-            </div>
-            <Plus size={20} />
-          </button>
-
-          <button
-            onClick={() => setActiveModal('expense')}
-            className="pm-btn"
-            style={{
-              padding: '16px',
-              background: 'var(--pm-blue-600)',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderRadius: 'var(--pm-radius-lg)',
-              boxShadow: 'var(--pm-shadow-sm)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 'var(--pm-radius-md)',
-                background: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <Fuel size={22} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, fontSize: '1.0625rem' }}>Log Fuel / Expense</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Record petrol, diesel, tolls, or minor repair</div>
-              </div>
-            </div>
-            <Plus size={20} />
-          </button>
-
-          <button
-            onClick={() => setActiveModal('fault')}
-            className="pm-btn"
-            style={{
-              padding: '16px',
-              background: '#9B2C2C',
-              color: '#FFFFFF',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              borderRadius: 'var(--pm-radius-lg)',
-              boxShadow: 'var(--pm-shadow-sm)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 'var(--pm-radius-md)',
-                background: 'rgba(255, 255, 255, 0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <AlertTriangle size={22} />
-              </div>
-              <div style={{ textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, fontSize: '1.0625rem' }}>Report Fault / Breakdown</div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>Alert vehicle owner and roadside assistance</div>
-              </div>
-            </div>
-            <ShieldAlert size={20} />
-          </button>
-        </div>
-
-        {/* Activity Feed for Shift */}
-        <div className="pm-card" style={{ marginTop: 'var(--pm-space-2)' }}>
-          <div style={{
-            padding: 'var(--pm-space-3) var(--pm-space-4)',
-            borderBottom: '1px solid var(--pm-border)',
+        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#A1D0E0', fontSize: '0.8125rem', textDecoration: 'none' }}>
+          <ArrowLeft size={16} /> Exit to Fleet View
+        </Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            fontSize: '0.6875rem',
+            fontWeight: 700,
+            background: isBroadcasting ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+            color: isBroadcasting ? '#22C55E' : '#EF4444',
+            padding: '3px 10px',
+            borderRadius: 12,
+            border: `1px solid ${isBroadcasting ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`,
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            gap: 6,
           }}>
-            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>Shift Activity</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>{entries.length} items logged</span>
-          </div>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: isBroadcasting ? '#22C55E' : '#EF4444',
+              animation: isBroadcasting ? 'pulse 1.5s infinite' : 'none',
+            }} />
+            {isBroadcasting ? 'GPS BROADCAST ACTIVE' : 'TRACKER STANDBY'}
+          </span>
+        </div>
+      </header>
 
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {entries.map(item => (
-              <div
-                key={item.id}
-                style={{
-                  padding: 'var(--pm-space-3) var(--pm-space-4)',
-                  borderBottom: '1px solid var(--pm-border-subtle)',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 'var(--pm-radius-full)',
-                    background: item.type === 'income'
-                      ? 'var(--pm-success-light)'
-                      : item.type === 'expense'
-                      ? 'var(--pm-error-light)'
-                      : 'var(--pm-warning-light)',
-                    color: item.type === 'income'
-                      ? 'var(--pm-success)'
-                      : item.type === 'expense'
-                      ? 'var(--pm-error)'
-                      : 'var(--pm-warning)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    {item.type === 'income' ? <ArrowUpRight size={16} /> : item.type === 'expense' ? <ArrowDownRight size={16} /> : <AlertTriangle size={16} />}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 500 }}>{item.title}</div>
-                    <div style={{ fontSize: '0.6875rem', color: 'var(--pm-text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{item.time}</span>
-                      <span>•</span>
-                      {item.status === 'synced' ? (
-                        <span style={{ color: 'var(--pm-success)', display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <CheckCircle2 size={10} /> Synced
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--pm-warning)', display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Clock size={10} /> Queued
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {item.amount_pesewas !== undefined && (
-                  <div style={{
-                    fontWeight: 600,
-                    fontSize: '0.875rem',
-                    color: item.type === 'income' ? 'var(--pm-success)' : 'var(--pm-text)'
-                  }}>
-                    {item.type === 'income' ? '+' : '-'} {formatPesewas(item.amount_pesewas)}
-                  </div>
-                )}
-              </div>
+      <main style={{ maxWidth: 520, margin: '0 auto', padding: '20px 16px' }}>
+        {/* Vehicle Selection Card */}
+        <div style={{
+          background: '#0F2633',
+          border: '1px solid #1E475E',
+          borderRadius: 12,
+          padding: '16px',
+          marginBottom: 16,
+        }}>
+          <label style={{ fontSize: '0.75rem', color: '#6A9BB0', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+            Selected Vehicle to Broadcast
+          </label>
+          <select
+            value={selectedVehicleId}
+            onChange={e => setSelectedVehicleId(e.target.value)}
+            disabled={isBroadcasting}
+            style={{
+              width: '100%',
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: '#061118',
+              color: '#FFFFFF',
+              border: '1px solid #1E475E',
+              fontSize: '0.9375rem',
+              fontWeight: 600,
+            }}
+          >
+            {vehicles.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.plate_number} • {v.make} {v.model} ({v.vehicle_type})
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
-        {/* Back Link to Fleet Manager */}
-        <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: 'var(--pm-space-4)' }}>
-          <Link
-            href="/dashboard"
-            style={{
-              fontSize: '0.8125rem',
-              color: 'var(--pm-text-secondary)',
+        {/* Big Speedometer & Telematics Gauge */}
+        <div style={{
+          background: isOverspeed ? 'rgba(220, 38, 38, 0.15)' : '#0F2633',
+          border: `2px solid ${isOverspeed ? '#DC2626' : isBroadcasting ? '#0B4F6C' : '#1E475E'}`,
+          borderRadius: 20,
+          padding: '32px 20px',
+          textAlign: 'center',
+          marginBottom: 20,
+          position: 'relative',
+          transition: 'all 0.3s ease',
+        }}>
+          <div style={{ fontSize: '0.75rem', color: '#A1D0E0', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 8 }}>
+            Real-Time Ground Speed
+          </div>
+
+          <div style={{
+            fontSize: '4.5rem',
+            fontWeight: 800,
+            lineHeight: 1,
+            color: isOverspeed ? '#EF4444' : '#FFFFFF',
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {currentSpeed}
+            <span style={{ fontSize: '1.25rem', fontWeight: 600, color: '#6A9BB0', marginLeft: 8 }}>km/h</span>
+          </div>
+
+          {isOverspeed && (
+            <div style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6
-            }}
-          >
-            <ArrowLeft size={14} /> Back to Fleet Owner Dashboard
-          </Link>
-        </div>
-      </div>
-
-      {/* Modal 1: Log Income */}
-      {activeModal === 'income' && (
-        <div className="pm-modal-overlay" onClick={() => setActiveModal(null)}>
-          <div className="pm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="pm-modal-header">
-              <h2>Record Fare Income</h2>
-              <button className="pm-btn pm-btn-ghost pm-btn-sm" onClick={() => setActiveModal(null)}>✕</button>
+              gap: 6,
+              background: '#DC2626',
+              color: '#FFFFFF',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              padding: '4px 12px',
+              borderRadius: 20,
+              marginTop: 12,
+            }}>
+              <AlertTriangle size={14} /> SPEED LIMIT EXCEEDED (&gt;80 km/h)
             </div>
-            <form onSubmit={handleLogIncome}>
-              <div className="pm-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-                <div>
-                  <label className="pm-form-label">Amount in Cedis (GH₵) *</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    className="pm-input"
-                    placeholder="e.g. 150.00"
-                    value={incomeAmount}
-                    onChange={e => setIncomeAmount(e.target.value)}
-                    autoFocus
-                    required
-                  />
-                  {incomeAmount && !isNaN(parseFloat(incomeAmount)) && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)', marginTop: 4 }}>
-                      Exact ledger value: {Math.round(parseFloat(incomeAmount) * 100)} pesewas
-                    </div>
-                  )}
-                </div>
+          )}
 
-                <div>
-                  <label className="pm-form-label">Payment Method</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <button
-                      type="button"
-                      className={`pm-btn ${incomeMethod === 'cash' ? 'pm-btn-primary' : 'pm-btn-secondary'}`}
-                      onClick={() => setIncomeMethod('cash')}
-                    >
-                      Physical Cash
-                    </button>
-                    <button
-                      type="button"
-                      className={`pm-btn ${incomeMethod === 'momo_manual' ? 'pm-btn-primary' : 'pm-btn-secondary'}`}
-                      onClick={() => setIncomeMethod('momo_manual')}
-                    >
-                      MoMo Transfer
-                    </button>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="pm-form-label">Trip Notes / Route (Optional)</label>
-                  <input
-                    type="text"
-                    className="pm-input"
-                    placeholder="e.g. 3rd trip Madina to Accra"
-                    value={incomeNotes}
-                    onChange={e => setIncomeNotes(e.target.value)}
-                  />
-                </div>
+          {/* Telematics Sub-grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 1fr',
+            gap: 12,
+            marginTop: 28,
+            paddingTop: 20,
+            borderTop: '1px solid #1E475E',
+          }}>
+            <div>
+              <div style={{ fontSize: '0.6875rem', color: '#6A9BB0' }}>HEADING</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <Compass size={14} color="#3A96B5" /> {currentHeading}°
               </div>
-              <div className="pm-modal-footer">
-                <button type="button" className="pm-btn pm-btn-secondary" onClick={() => setActiveModal(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="pm-btn pm-btn-primary" style={{ background: 'var(--pm-success)' }}>
-                  Save Entry
-                </button>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.6875rem', color: '#6A9BB0' }}>BATTERY</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginTop: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <Battery size={14} color={batteryLevel < 20 ? '#EF4444' : '#22C55E'} /> {batteryLevel}%
               </div>
-            </form>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.6875rem', color: '#6A9BB0' }}>ACCURACY</div>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginTop: 2 }}>
+                {accuracy ? `±${accuracy}m` : 'Ready'}
+              </div>
+            </div>
           </div>
         </div>
-      )}
 
-      {/* Modal 2: Log Expense */}
-      {activeModal === 'expense' && (
-        <div className="pm-modal-overlay" onClick={() => setActiveModal(null)}>
-          <div className="pm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="pm-modal-header">
-              <h2>Log Expense / Fuel</h2>
-              <button className="pm-btn pm-btn-ghost pm-btn-sm" onClick={() => setActiveModal(null)}>✕</button>
-            </div>
-            <form onSubmit={handleLogExpense}>
-              <div className="pm-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-                <div>
-                  <label className="pm-form-label">Expense Category</label>
-                  <select
-                    className="pm-select"
-                    value={expenseType}
-                    onChange={e => setExpenseType(e.target.value as 'fuel' | 'toll' | 'repair' | 'other')}
-                  >
-                    <option value="fuel">Fuel (Petrol/Diesel)</option>
-                    <option value="toll">Road Toll / Station Levy</option>
-                    <option value="repair">Emergency Vulcanizer / Tyre</option>
-                    <option value="other">Other Operational Cost</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="pm-form-label">Amount in Cedis (GH₵) *</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    className="pm-input"
-                    placeholder="e.g. 80.00"
-                    value={expenseAmount}
-                    onChange={e => setExpenseAmount(e.target.value)}
-                    autoFocus
-                    required
-                  />
-                </div>
-
-                {expenseType === 'fuel' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <div>
-                      <label className="pm-form-label">Litres</label>
-                      <input
-                        type="number"
-                        step="0.1"
-                        className="pm-input"
-                        placeholder="e.g. 12"
-                        value={fuelLitres}
-                        onChange={e => setFuelLitres(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <label className="pm-form-label">Station</label>
-                      <select
-                        className="pm-select"
-                        value={fuelStation}
-                        onChange={e => setFuelStation(e.target.value)}
-                      >
-                        <option value="Goil">GOIL</option>
-                        <option value="Total">TotalEnergies</option>
-                        <option value="Shell">Shell</option>
-                        <option value="Allied">Allied</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{
-                  border: '1px dashed var(--pm-border)',
-                  borderRadius: 'var(--pm-radius-md)',
-                  padding: 'var(--pm-space-3)',
-                  textAlign: 'center',
-                  background: 'var(--pm-bg-subtle)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  fontSize: '0.8125rem',
-                  color: 'var(--pm-text-secondary)'
-                }}>
-                  <Camera size={16} /> Snap Receipt Photo (Optional)
-                </div>
-              </div>
-              <div className="pm-modal-footer">
-                <button type="button" className="pm-btn pm-btn-secondary" onClick={() => setActiveModal(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="pm-btn pm-btn-primary">
-                  Save Expense
-                </button>
-              </div>
-            </form>
+        {/* Ghana Corridor Geofence Radar Card */}
+        <div style={{
+          background: '#0F2633',
+          border: '1px solid #1E475E',
+          borderRadius: 12,
+          padding: '16px',
+          marginBottom: 20,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <MapPin size={16} color="#3A96B5" />
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#A1D0E0' }}>
+              Active Transit Geofence Status
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* Modal 3: Report Fault */}
-      {activeModal === 'fault' && (
-        <div className="pm-modal-overlay" onClick={() => setActiveModal(null)}>
-          <div className="pm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
-            <div className="pm-modal-header">
-              <h2>Report Vehicle Fault</h2>
-              <button className="pm-btn pm-btn-ghost pm-btn-sm" onClick={() => setActiveModal(null)}>✕</button>
-            </div>
-            <form onSubmit={handleReportFault}>
-              <div className="pm-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-                <div>
-                  <label className="pm-form-label">Fault Type</label>
-                  <select
-                    className="pm-select"
-                    value={faultType}
-                    onChange={e => setFaultType(e.target.value)}
-                  >
-                    <option value="puncture">Tyre Puncture / Blowout</option>
-                    <option value="engine_overheat">Engine Overheating / Radiator</option>
-                    <option value="brakes">Brake Issue</option>
-                    <option value="alternator">Battery / Alternator</option>
-                    <option value="police_inspection">Police / Station Inspection Delay</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="pm-form-label">Current Location *</label>
-                  <div style={{ position: 'relative' }}>
-                    <MapPin size={16} style={{
-                      position: 'absolute', left: 12, top: '50%',
-                      transform: 'translateY(-50%)', color: 'var(--pm-text-muted)'
-                    }} />
-                    <input
-                      type="text"
-                      className="pm-input"
-                      style={{ paddingLeft: 38 }}
-                      value={faultLocation}
-                      onChange={e => setFaultLocation(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="pm-form-label">Severity Level</label>
-                  <select
-                    className="pm-select"
-                    value={faultSeverity}
-                    onChange={e => setFaultSeverity(e.target.value as 'low' | 'medium' | 'high')}
-                  >
-                    <option value="low">Low (Vehicle still drivable)</option>
-                    <option value="medium">Medium (Requires attention soon)</option>
-                    <option value="high">High (Vehicle stopped / cannot move)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="pm-form-label">Fault Description</label>
-                  <textarea
-                    className="pm-textarea"
-                    rows={2}
-                    placeholder="Describe what happened..."
-                    value={faultNotes}
-                    onChange={e => setFaultNotes(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="pm-modal-footer">
-                <button type="button" className="pm-btn pm-btn-secondary" onClick={() => setActiveModal(null)}>
-                  Cancel
-                </button>
-                <button type="submit" className="pm-btn pm-btn-primary" style={{ background: 'var(--pm-error)' }}>
-                  Submit Incident
-                </button>
-              </div>
-            </form>
+          <div style={{
+            background: '#061118',
+            borderRadius: 8,
+            padding: '10px 14px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            color: activeGeofence ? '#22C55E' : '#6A9BB0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <span>{activeGeofence || 'Transit Route (En Route)'}</span>
+            {activeGeofence && (
+              <span style={{ fontSize: '0.6875rem', background: 'rgba(34, 197, 94, 0.15)', padding: '2px 8px', borderRadius: 10 }}>
+                Inside Zone
+              </span>
+            )}
           </div>
+
+          {currentCoords && (
+            <div style={{ fontSize: '0.6875rem', color: '#6A9BB0', fontFamily: 'monospace', marginTop: 8 }}>
+              Fix: {currentCoords.lat.toFixed(5)}, {currentCoords.lng.toFixed(5)}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Error Notice */}
+        {gpsError && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid #EF4444',
+            color: '#FCA5A5',
+            padding: '12px',
+            borderRadius: 8,
+            fontSize: '0.8125rem',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+            <span>{gpsError}</span>
+          </div>
+        )}
+
+        {/* Big Start / Stop Broadcast Action Button */}
+        <button
+          type="button"
+          onClick={handleToggleBroadcast}
+          style={{
+            width: '100%',
+            padding: '18px',
+            borderRadius: 14,
+            border: 'none',
+            background: isBroadcasting ? '#DC2626' : '#0B4F6C',
+            color: '#FFFFFF',
+            fontSize: '1.125rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            boxShadow: isBroadcasting
+              ? '0 0 25px rgba(220, 38, 38, 0.4)'
+              : '0 0 25px rgba(11, 79, 108, 0.4)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          {isBroadcasting ? (
+            <>
+              <Pause size={22} /> Stop Tracking Shift
+            </>
+          ) : (
+            <>
+              <Play size={22} fill="#FFFFFF" /> Start Shift & Broadcast GPS
+            </>
+          )}
+        </button>
+
+        {/* Telemetry Stats & Queue Status */}
+        <div style={{
+          marginTop: 20,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '0.75rem',
+          color: '#6A9BB0',
+        }}>
+          <div>Pings Sent: <strong style={{ color: '#FFFFFF' }}>{pingCount}</strong></div>
+          {lastPingTime && <div>Last Sent: <strong style={{ color: '#FFFFFF' }}>{lastPingTime}</strong></div>}
+          {offlineQueue.length > 0 && (
+            <div style={{ color: '#F59E0B' }}>
+              Offline Queue: <strong>{offlineQueue.length}</strong>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

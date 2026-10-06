@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import type * as LeafletType from 'leaflet';
 import { LocateFixed, Maximize2, Minimize2, Target, Navigation } from 'lucide-react';
 
+export type VehicleCondition = 'parked' | 'offline' | 'alert' | 'idle' | 'maintenance';
+
 export interface VehicleMarkerData {
   id: string;
   vehicleId?: string; // ID corresponding to vehicle page (e.g. "veh-ge3797", "veh-1", etc.)
@@ -11,6 +13,7 @@ export interface VehicleMarkerData {
   label: string; // e.g. "GE 3797-20  LOC" or "GE 3797-20 TRK"
   driverName?: string;
   status: 'moving' | 'idle' | 'parked' | 'offline';
+  condition?: VehicleCondition;
   speedKmh: number;
   courseHeading: number;
   latitude: number;
@@ -23,7 +26,55 @@ export interface VehicleMarkerData {
   trailCoordinates?: Array<[number, number]>;
   isStale?: boolean;
   isTrk?: boolean;
+  hasAlert?: boolean;
 }
+
+export function getVehicleCondition(veh: VehicleMarkerData): VehicleCondition {
+  if (veh.condition) return veh.condition;
+  if (veh.hasAlert) return 'alert';
+  if (veh.isStale || veh.status === 'offline') return 'offline';
+  if (veh.status === 'idle') return 'idle';
+  if (veh.status === 'parked') return 'parked';
+  return 'parked';
+}
+
+export const CONDITION_DETAILS: Record<VehicleCondition, {
+  label: string;
+  iconSrc: string;
+  color: string;
+  bgLight: string;
+}> = {
+  parked: {
+    label: 'Parked',
+    iconSrc: '/pins/parked.png',
+    color: '#0B4F6C',
+    bgLight: '#E0F2FE',
+  },
+  offline: {
+    label: 'Offline',
+    iconSrc: '/pins/offline.png',
+    color: '#64748B',
+    bgLight: '#F1F5F9',
+  },
+  alert: {
+    label: 'Alert',
+    iconSrc: '/pins/alert.png',
+    color: '#DC2626',
+    bgLight: '#FEE2E2',
+  },
+  idle: {
+    label: 'Idle',
+    iconSrc: '/pins/idle.png',
+    color: '#D97706',
+    bgLight: '#FEF3C7',
+  },
+  maintenance: {
+    label: 'Maintenance',
+    iconSrc: '/pins/maintenance.png',
+    color: '#7C3AED',
+    bgLight: '#EDE9FE',
+  },
+};
 
 export interface PoiMarkerData {
   id: string;
@@ -404,36 +455,46 @@ export default function TrackingMap({
           veh.plateNumber === selectedVehicleId ||
           (selectedVehicleId ? veh.id === `marker-${selectedVehicleId}` : false);
 
-        const iconSrc = 'https://www.overseetracking.com/img/AngleIcon/2.png';
-        const fallbackSrc = '/img/AngleIcon/2.png';
+        const condition = getVehicleCondition(veh);
+        const conditionInfo = CONDITION_DETAILS[condition];
 
         markerCoordinates.push([veh.latitude, veh.longitude]);
 
+        // Sizeable icon sizing:
+        // Proportional to uploaded images (272x326)
+        // Standard: 38px width, 46px height
+        // Selected: 44px width, 53px height
+        const iconW = isSelected ? 44 : 38;
+        const iconH = isSelected ? 53 : 46;
+        // Anchor at center bottom of the pin pedestal
+        const anchorX = Math.round(iconW / 2);
+        const anchorY = Math.round(iconH * 0.88);
+
         const markerClass = [
-          'OSMdivIcon',
-          isSelected ? 'active-vehicle selected-focus-vehicle' : veh.isTrk ? 'track-point' : 'neighbor-vehicle',
-          `status-${veh.isStale ? 'offline' : veh.status}`,
-        ].join(' ');
+          'pm-map-blip',
+          `condition-${condition}`,
+          isSelected ? 'selected-blip' : veh.isTrk ? 'trk-point' : '',
+        ].filter(Boolean).join(' ');
 
         const customDivIcon = L.divIcon({
           className: markerClass,
-          iconSize: isSelected ? [22, 22] : [14, 14],
-          iconAnchor: isSelected ? [11, 11] : [7, 7],
+          iconSize: [iconW, iconH + 16],
+          iconAnchor: [anchorX, anchorY],
+          popupAnchor: [0, -anchorY],
           html: `
-            <div class="${isSelected ? 'selected-pulse-halo' : ''}"></div>
+            <div class="pm-blip-halo ${isSelected ? 'pulse-selected' : condition === 'alert' ? 'pulse-alert' : condition === 'idle' ? 'pulse-idle' : condition === 'maintenance' ? 'pulse-maintenance' : ''}"></div>
             <img 
-              src="${iconSrc}" 
-              onerror="this.src='${fallbackSrc}'" 
-              style="transform: rotate(${veh.courseHeading || 0}deg);" 
-              alt="vehicle-heading" 
+              src="${conditionInfo.iconSrc}" 
+              class="pm-map-blip-img" 
+              alt="${conditionInfo.label}" 
             />
-            <div>${veh.label}</div>
+            <div class="pm-map-blip-plate">${veh.plateNumber || veh.label}</div>
           `,
         });
 
         const marker = L.marker([veh.latitude, veh.longitude], {
           icon: customDivIcon,
-          zIndexOffset: isSelected ? 3000 : veh.isTrk ? 200 : 800,
+          zIndexOffset: isSelected ? 3500 : condition === 'alert' ? 2500 : veh.isTrk ? 200 : 800,
         });
 
         const targetVehicleId = veh.vehicleId || veh.id.replace('marker-', '').replace('-loc', '').replace('-trk', '');
@@ -449,20 +510,29 @@ export default function TrackingMap({
         });
 
         marker.bindPopup(`
-          <div style="font-family: inherit; min-width: 185px;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
-              <strong style="color: ${isSelected ? '#15803D' : '#0B4F6C'}; font-size: 13px;">${veh.plateNumber}</strong>
-              <span style="font-size: 10px; background: ${veh.isStale ? '#E2DFDB' : isSelected ? '#DCFCE7' : '#EDF5F8'}; color: ${veh.isStale ? '#655F59' : isSelected ? '#15803D' : '#0B4F6C'}; padding: 2px 4px; border-radius: 3px; text-transform: uppercase; font-weight: 700;">
-                ${veh.isStale ? 'offline' : veh.status}
+          <div style="font-family: inherit; min-width: 205px; padding: 2px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #E2DFDB;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <img src="${conditionInfo.iconSrc}" style="width: 22px; height: 26px; object-fit: contain;" alt="${conditionInfo.label}" />
+                <strong style="color: ${isSelected ? '#15803D' : '#0B4F6C'}; font-size: 13px;">${veh.plateNumber}</strong>
+              </div>
+              <span style="font-size: 10px; background: ${conditionInfo.bgLight}; color: ${conditionInfo.color}; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; font-weight: 700; border: 1px solid ${conditionInfo.color}33;">
+                ${conditionInfo.label}
               </span>
             </div>
-            <div style="font-size: 11px; color: #1A1917; margin-bottom: 2px;">
+            <div style="font-size: 11px; color: #1A1917; margin-bottom: 3px;">
+              <strong>Condition:</strong> <span style="color: ${conditionInfo.color}; font-weight: 700;">${conditionInfo.label}</span>
+            </div>
+            <div style="font-size: 11px; color: #1A1917; margin-bottom: 3px;">
               <strong>Speed:</strong> ${veh.speedKmh} km/h
             </div>
-            <div style="font-size: 11px; color: #1A1917; margin-bottom: 2px;">
+            <div style="font-size: 11px; color: #1A1917; margin-bottom: 3px;">
               <strong>Driver:</strong> ${veh.driverName || 'Unassigned'}
             </div>
-            <div style="font-size: 10px; color: #655F59; margin-top: 4px; border-top: 1px solid #E2DFDB; padding-top: 4px;">
+            <div style="font-size: 11px; color: #1A1917; margin-bottom: 3px;">
+              <strong>Ignition:</strong> ${veh.ignition ? 'ON' : 'OFF'}
+            </div>
+            <div style="font-size: 10px; color: #655F59; margin-top: 4px; padding-top: 4px; border-top: 1px solid #F0EEEC;">
               ${veh.locationLabel}
             </div>
             ${
@@ -470,7 +540,7 @@ export default function TrackingMap({
                 ? `<div style="margin-top: 8px;">
                      <a 
                        href="/vehicles/${targetVehicleId}" 
-                       style="display: block; width: 100%; text-align: center; background: ${isSelected ? '#15803D' : '#0B4F6C'}; color: #ffffff; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-decoration: none;"
+                       style="display: block; width: 100%; text-align: center; background: ${isSelected ? '#15803D' : '#0B4F6C'}; color: #ffffff; padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-decoration: none;"
                      >
                        ${isSelected ? 'Current Vehicle Page' : 'Open Dedicated Vehicle Page &rarr;'}
                      </a>

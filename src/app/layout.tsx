@@ -1,8 +1,10 @@
+import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { siteUrl } from '@/lib/site';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
+import { FleetProvider } from '@/lib/fleet-context';
 
 export const metadata: Metadata = {
   metadataBase: siteUrl,
@@ -58,20 +60,40 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-        <Script id="register-sw" strategy="afterInteractive">
+        <ClerkProvider>
+          <AuthProvider>
+            <FleetProvider>
+              {children}
+            </FleetProvider>
+          </AuthProvider>
+          <Script id="register-sw" strategy="afterInteractive">
           {`
-            if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-              window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch((err) => {
+          if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            var isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            if (isDev) {
+              navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for (var i = 0; i < registrations.length; i++) {
+                  registrations[i].unregister();
+                }
+              });
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  for (var i = 0; i < names.length; i++) {
+                    caches.delete(names[i]);
+                  }
+                });
+              }
+            } else {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').catch(function(err) {
                   console.debug('ServiceWorker registration error:', err);
                 });
               });
             }
+          }
           `}
-        </Script>
+          </Script>
+        </ClerkProvider>
       </body>
     </html>
   );

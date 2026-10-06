@@ -3,6 +3,7 @@
 // Enforces tenant isolation, geofence enter/exit detection, and status state machine
 
 export type VehicleGpsStatus = 'moving' | 'idle' | 'parked' | 'offline';
+export type VehicleCondition = 'parked' | 'offline' | 'alert' | 'idle' | 'maintenance';
 
 export interface GpsPosition {
   id: string;
@@ -20,6 +21,7 @@ export interface GpsPosition {
   batteryPercentage: number;
   locationLabel: string;
   status: VehicleGpsStatus;
+  condition?: VehicleCondition;
   timestamp: string;
   trailCoordinates?: Array<[number, number]>;
 }

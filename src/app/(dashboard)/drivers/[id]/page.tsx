@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -12,13 +12,28 @@ import {
   mockDrivers, mockAssignments, mockLedgerEntries, mockIncidents,
   mockFuelLogs, mockVehicles,
 } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function DriverDetailPage() {
   const params = useParams();
-  const initialDriver = mockDrivers.find(d => d.id === params.id);
-  const [driver, setDriver] = useState<Driver | undefined>(initialDriver);
+  const rawId = String(params.id || '');
+  const {
+    drivers,
+    vehicles,
+    ledgerEntries,
+    incidents,
+    fuelLogs,
+    isDemo,
+    mounted,
+  } = useFleet();
+
+  const foundDriver =
+    drivers.find(d => d.id === rawId) ||
+    (isDemo ? mockDrivers.find(d => d.id === rawId) : undefined);
+
+  const [driver, setDriver] = useState<Driver | undefined>(foundDriver);
   const [currentAssignment, setCurrentAssignment] = useState<VehicleAssignment | undefined>(
-    mockAssignments.find(a => a.driver_id === params.id && !a.ends_at)
+    isDemo ? mockAssignments.find(a => a.driver_id === rawId && !a.ends_at) : undefined
   );
 
   const [showEditModal, setShowEditModal] = useState(false);
@@ -26,38 +41,77 @@ export default function DriverDetailPage() {
 
   // Edit form state
   const [editForm, setEditForm] = useState({
-    full_name: initialDriver?.full_name || '',
-    phone: initialDriver?.phone || '',
-    role_type: (initialDriver?.role_type || 'driver') as DriverRoleType,
-    licence_number: 'GR-24-91823',
-    licence_class: initialDriver?.licence_class || 'C',
-    licence_expiry: initialDriver?.licence_expiry || '2027-12-31',
-    emergency_contact: initialDriver?.emergency_contact || '+233244000000',
-    sms_consent_given: initialDriver?.sms_consent_given ?? true,
-    location_consent_given: initialDriver?.location_consent_given ?? true,
+    full_name: '',
+    phone: '',
+    role_type: 'driver' as DriverRoleType,
+    licence_number: '',
+    licence_class: 'C',
+    licence_expiry: '',
+    emergency_contact: '',
+    sms_consent_given: true,
+    location_consent_given: true,
   });
 
+  useEffect(() => {
+    if (foundDriver) {
+      setDriver(foundDriver);
+      setEditForm({
+        full_name: foundDriver.full_name || '',
+        phone: foundDriver.phone || '',
+        role_type: (foundDriver.role_type || 'driver') as DriverRoleType,
+        licence_number: 'GR-24-91823',
+        licence_class: foundDriver.licence_class || 'C',
+        licence_expiry: foundDriver.licence_expiry || '2027-12-31',
+        emergency_contact: foundDriver.emergency_contact || '+233 24 000 0000',
+        sms_consent_given: foundDriver.sms_consent_given ?? true,
+        location_consent_given: foundDriver.location_consent_given ?? true,
+      });
+    }
+  }, [foundDriver]);
+
   // Assign form state
+  const availableVehicles = vehicles.length > 0 ? vehicles : (isDemo ? mockVehicles : []);
   const [assignForm, setAssignForm] = useState({
-    vehicle_id: currentAssignment?.vehicle_id || mockVehicles[0]?.id || '',
+    vehicle_id: currentAssignment?.vehicle_id || availableVehicles[0]?.id || '',
     commission_type: (currentAssignment?.commission_type || 'percent') as CommissionType,
     commission_value: currentAssignment?.commission_value || 15,
     daily_sales_target: 350,
   });
 
-  if (!driver) {
+  useEffect(() => {
+    if (availableVehicles.length > 0 && !assignForm.vehicle_id) {
+      setAssignForm(prev => ({ ...prev, vehicle_id: availableVehicles[0].id }));
+    }
+  }, [availableVehicles, assignForm.vehicle_id]);
+
+  if (!mounted) {
     return (
-      <div className="pm-empty">
-        <div className="pm-empty-title">Driver not found</div>
-        <Link href="/drivers" className="pm-btn pm-btn-primary" style={{ marginTop: 16 }}>Back to Drivers</Link>
+      <div style={{ padding: 'var(--pm-space-6)', textAlign: 'center', color: 'var(--pm-text-muted)' }}>
+        Loading driver profile...
       </div>
     );
   }
 
-  const pastAssignments = mockAssignments.filter(a => a.driver_id === driver.id && a.ends_at);
-  const driverLedger = mockLedgerEntries.filter(e => e.driver_id === driver.id && e.status === 'confirmed');
-  const driverIncidents = mockIncidents.filter(i => i.driver_id === driver.id);
-  const driverFuel = mockFuelLogs.filter(f => f.driver_id === driver.id);
+  if (!driver) {
+    return (
+      <div style={{ padding: 'var(--pm-space-6)', maxWidth: 540, margin: '40px auto' }}>
+        <div className="pm-card" style={{ padding: 'var(--pm-space-8)', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: 'var(--pm-space-2)' }}>Driver Not Found</h2>
+          <p style={{ color: 'var(--pm-text-muted)', fontSize: '0.875rem', marginBottom: 'var(--pm-space-5)' }}>
+            No driver with ID &quot;{rawId}&quot; exists in your fleet registry.
+          </p>
+          <Link href="/drivers" className="pm-btn pm-btn-primary">
+            <ArrowLeft size={16} /> Back to Drivers
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const pastAssignments = isDemo ? mockAssignments.filter(a => a.driver_id === driver.id && a.ends_at) : [];
+  const driverLedger = ledgerEntries.filter(e => e.driver_id === driver.id && e.status === 'confirmed');
+  const driverIncidents = incidents.filter(i => i.driver_id === driver.id);
+  const driverFuel = fuelLogs.filter(f => f.driver_id === driver.id);
 
   const totalIncome = driverLedger.filter(e => e.entry_type === 'income').reduce((s, e) => s + e.amount_pesewas, 0);
   const totalExpenses = driverLedger.filter(e => e.entry_type === 'expense').reduce((s, e) => s + e.amount_pesewas, 0);
@@ -82,10 +136,10 @@ export default function DriverDetailPage() {
 
   const handleSaveAssignment = (e: React.FormEvent) => {
     e.preventDefault();
-    const veh = mockVehicles.find(v => v.id === assignForm.vehicle_id);
+    const veh = availableVehicles.find(v => v.id === assignForm.vehicle_id);
     const updated: VehicleAssignment = {
       id: `asgn-${Date.now()}`,
-      org_id: 'org-demo',
+      org_id: 'org-fleet',
       vehicle_id: assignForm.vehicle_id,
       driver_id: driver.id,
       starts_at: new Date().toISOString().slice(0, 10),
@@ -423,12 +477,17 @@ export default function DriverDetailPage() {
                       className="pm-select"
                       value={assignForm.vehicle_id}
                       onChange={e => setAssignForm({ ...assignForm, vehicle_id: e.target.value })}
+                      disabled={availableVehicles.length === 0}
                     >
-                      {mockVehicles.map(v => (
-                        <option key={v.id} value={v.id}>
-                          {v.plate_number} : {v.make} {v.model} ({v.vehicle_type})
-                        </option>
-                      ))}
+                      {availableVehicles.length === 0 ? (
+                        <option value="">No vehicles registered yet</option>
+                      ) : (
+                        availableVehicles.map(v => (
+                          <option key={v.id} value={v.id}>
+                            {v.plate_number} : {v.make} {v.model} ({v.vehicle_type})
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
 

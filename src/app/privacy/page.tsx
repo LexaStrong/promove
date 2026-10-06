@@ -302,6 +302,25 @@ export default function PrivacyPage() {
           </div>
         </section>
 
+        {/* Section 5: Document Confidentiality & Admin Restrictions */}
+        <section style={{ marginBottom: 'var(--pm-space-6)' }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: 'var(--pm-space-3)', color: '#0B4F6C' }}>
+            5. Document Confidentiality & Administrative Restrictions Policy
+          </h2>
+          <div className="pm-card" style={{ padding: 'var(--pm-space-5)', borderLeft: '4px solid var(--pm-warning)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, fontWeight: 600, color: '#0B4F6C' }}>
+              <Lock size={18} /> Confidential Vehicle Documents: Owners & Drivers Exclusively
+            </div>
+            <p style={{ fontSize: '0.875rem', color: 'var(--pm-text-secondary)', lineHeight: 1.6, margin: 0 }}>
+              Under ProMove statutory policies aligned with the Ghana Data Protection Act (Act 843), all vehicle documents
+              (including DVLA registration logbooks, roadworthiness certificates, insurance policies, and police inspection permits)
+              are strictly confidential. Platform administrators and administrative staff are technically and legally restricted
+              from viewing, searching, or exporting vehicle documents. Only verified fleet owners and their assigned drivers
+              hold authorization to access, upload, and review these confidential records.
+            </p>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer style={{
           borderTop: '1px solid var(--pm-border)',

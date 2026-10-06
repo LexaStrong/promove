@@ -6,10 +6,10 @@ import {
   XCircle, BookOpen, Download, AlertTriangle, RefreshCw, BarChart3,
 } from 'lucide-react';
 import { formatPesewas, EntryType, LedgerStatus, LedgerEntry, LedgerCategory, PaymentMethod } from '@/lib/types';
-import { mockLedgerEntries, mockVehicles, mockDrivers } from '@/lib/mock-data';
+import { useFleet } from '@/lib/fleet-context';
 
 export default function LedgerPage() {
-  const [entries, setEntries] = useState<LedgerEntry[]>(mockLedgerEntries);
+  const { ledgerEntries, vehicles, drivers, addLedgerEntry, voidLedgerEntry, isDemo } = useFleet();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<EntryType | ''>('');
   const [statusFilter, setStatusFilter] = useState<LedgerStatus | ''>('');
@@ -25,8 +25,8 @@ export default function LedgerPage() {
   // New entry form state
   const [addType, setAddType] = useState<EntryType>('income');
   const [newEntryForm, setNewEntryForm] = useState({
-    vehicle_id: mockVehicles[0]?.id || '',
-    driver_id: mockDrivers[0]?.id || '',
+    vehicle_id: '',
+    driver_id: '',
     entry_date: new Date().toISOString().slice(0, 10),
     category: 'daily_sales' as LedgerCategory,
     amount_cedis: '',
@@ -35,42 +35,28 @@ export default function LedgerPage() {
     notes: '',
   });
 
+  const entries = ledgerEntries;
+
   const handleRecordEntry = (e: React.FormEvent) => {
     e.preventDefault();
     const amountVal = parseFloat(newEntryForm.amount_cedis);
     if (!amountVal || isNaN(amountVal) || amountVal <= 0) return;
 
-    const veh = mockVehicles.find(v => v.id === newEntryForm.vehicle_id);
-    const drv = mockDrivers.find(d => d.id === newEntryForm.driver_id);
-
-    const created: LedgerEntry = {
-      id: `led-${Date.now()}`,
-      org_id: 'org-demo',
+    addLedgerEntry({
       vehicle_id: newEntryForm.vehicle_id,
       driver_id: newEntryForm.driver_id || null,
-      trip_id: null,
       entry_date: newEntryForm.entry_date,
       entry_type: addType,
       category: newEntryForm.category,
       amount_pesewas: Math.round(amountVal * 100),
       payment_method: newEntryForm.payment_method,
-      reference: newEntryForm.reference || null,
-      status: 'confirmed',
-      voided_by_entry_id: null,
-      void_reason: null,
-      recorded_by: 'Owner / Manager',
-      idempotency_key: `idemp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      notes: newEntryForm.notes || null,
-      created_at: new Date().toISOString(),
-      vehicle: veh,
-      driver: drv,
-    };
+      notes: newEntryForm.notes || '',
+    });
 
-    setEntries(prev => [created, ...prev]);
     setShowAddModal(false);
     setNewEntryForm({
-      vehicle_id: mockVehicles[0]?.id || '',
-      driver_id: mockDrivers[0]?.id || '',
+      vehicle_id: '',
+      driver_id: '',
       entry_date: new Date().toISOString().slice(0, 10),
       category: 'daily_sales',
       amount_cedis: '',
@@ -88,44 +74,7 @@ export default function LedgerPage() {
       return;
     }
 
-    const reversalId = `rev-${Date.now()}`;
-    const reversingEntry: LedgerEntry = {
-      id: reversalId,
-      org_id: entryToVoid.org_id,
-      vehicle_id: entryToVoid.vehicle_id,
-      driver_id: entryToVoid.driver_id,
-      trip_id: entryToVoid.trip_id,
-      entry_date: new Date().toISOString().slice(0, 10),
-      entry_type: 'adjustment',
-      category: 'other',
-      amount_pesewas: entryToVoid.amount_pesewas,
-      payment_method: entryToVoid.payment_method,
-      reference: `Reversal of #${entryToVoid.id.slice(0, 8)}`,
-      status: 'confirmed',
-      voided_by_entry_id: null,
-      void_reason: null,
-      recorded_by: 'Owner (Audited)',
-      idempotency_key: `rev-idemp-${Date.now()}`,
-      notes: `Automated reversal for voided entry #${entryToVoid.id.slice(0, 8)}: ${voidReason.trim()}`,
-      created_at: new Date().toISOString(),
-      vehicle: entryToVoid.vehicle,
-      driver: entryToVoid.driver,
-    };
-
-    setEntries(prev => [
-      reversingEntry,
-      ...prev.map(item =>
-        item.id === entryToVoid.id
-          ? {
-              ...item,
-              status: 'voided' as LedgerStatus,
-              void_reason: voidReason.trim(),
-              voided_by_entry_id: reversalId,
-            }
-          : item
-      ),
-    ]);
-
+    voidLedgerEntry(entryToVoid.id, voidReason.trim());
     setEntryToVoid(null);
     setVoidReason('');
     setVoidError(null);
@@ -145,7 +94,7 @@ export default function LedgerPage() {
   const totalExpenses = confirmedEntries.filter(e => ['expense', 'commission'].includes(e.entry_type)).reduce((s, e) => s + e.amount_pesewas, 0);
 
   // Daily target vs actuals per vehicle
-  const targetSummaries = mockVehicles.filter(v => !v.archived_at).map(v => {
+  const targetSummaries = vehicles.filter(v => !v.archived_at).map(v => {
     const todayEntries = entries.filter(
       e => e.vehicle_id === v.id && e.entry_type === 'income' && e.status === 'confirmed'
     );
@@ -238,7 +187,7 @@ export default function LedgerPage() {
         </select>
         <select className="pm-select" value={vehicleFilter} onChange={e => setVehicleFilter(e.target.value)} style={{ width: 160 }}>
           <option value="">All vehicles</option>
-          {mockVehicles.map(v => (
+          {vehicles.map(v => (
             <option key={v.id} value={v.id}>{v.plate_number}</option>
           ))}
         </select>
@@ -439,20 +388,21 @@ export default function LedgerPage() {
                         value={newEntryForm.vehicle_id}
                         onChange={e => setNewEntryForm({ ...newEntryForm, vehicle_id: e.target.value })}
                       >
-                        {mockVehicles.map(v => (
-                          <option key={v.id} value={v.id}>{v.plate_number}</option>
+                        <option value="">Select vehicle</option>
+                        {vehicles.map(v => (
+                          <option key={v.id} value={v.id}>{v.plate_number} ({v.make} {v.model})</option>
                         ))}
                       </select>
                     </div>
                     <div className="pm-input-group">
-                      <label className="pm-label">Driver</label>
+                       <label className="pm-label">Driver</label>
                       <select
                         className="pm-select"
                         value={newEntryForm.driver_id}
                         onChange={e => setNewEntryForm({ ...newEntryForm, driver_id: e.target.value })}
                       >
                         <option value="">Unassigned</option>
-                        {mockDrivers.map(d => (
+                        {drivers.map(d => (
                           <option key={d.id} value={d.id}>{d.full_name}</option>
                         ))}
                       </select>
