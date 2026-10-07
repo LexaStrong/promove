@@ -9,6 +9,7 @@ import {
 import { useFleet } from '@/lib/fleet-context';
 import { ghanaCorridorGeofences } from '@/lib/gps/telemetry-hub';
 import { traccarAdapter } from '@/lib/gps/traccar-adapter';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface OfflinePing {
   latitude: number;
@@ -192,7 +193,8 @@ export default function DriverAppPage() {
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#A1D0E0', fontSize: '0.8125rem', textDecoration: 'none' }}>
           <ArrowLeft size={16} /> Exit to Fleet View
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ThemeToggle />
           <span style={{
             fontSize: '0.6875rem',
             fontWeight: 700,

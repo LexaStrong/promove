@@ -12,6 +12,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { Role } from '@/lib/types';
 import { UserButton } from '@clerk/nextjs';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 interface NavItemConfig {
   href: string;
@@ -160,6 +161,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Settings size={18} />
             Settings
           </Link>
+          <div style={{ marginTop: 4 }}>
+            <ThemeToggle variant="inline" />
+          </div>
         </div>
       </aside>
 
@@ -206,7 +210,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="pm-topbar-right">
-          <Link href="/notifications" style={{ position: 'relative', color: 'var(--pm-text-secondary)' }}>
+          <ThemeToggle />
+
+          <Link href="/notifications" style={{ position: 'relative', color: 'var(--pm-text-secondary)', display: 'flex', alignItems: 'center' }}>
             <Bell size={20} />
             <span className="pm-notif-dot" />
           </Link>

@@ -6,13 +6,13 @@ import { verifyAdminSessionToken, ADMIN_COOKIE_NAME } from "@/lib/admin-auth";
 // Public routes explicitly permitted without authentication
 const isPublicRoute = createRouteMatcher([
   "/",
+  "/splash(.*)",
+  "/login(.*)",
+  "/privacy(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/admin(.*)", // Admin page renders its own dedicated HMAC cryptographic login
-  "/api/admin/auth/login",
-  "/api/admin/auth/session",
-  "/api/admin/auth/logout",
-  "/api/admin/set-role",
+  "/api/admin(.*)", // Admin API routes are protected by HMAC session token, not Clerk user session
   "/api/gps/positions",
   "/api/gps/telemetry",
   "/api/gps/traccar-webhook",
@@ -52,6 +52,8 @@ try {
           );
         }
       }
+      // Return early: Admin API requests are verified via HMAC token and must never be redirected to HTML by Clerk
+      return NextResponse.next();
     }
 
     // ── 2. Protected User Routes "Deny by Default" Enforcement ──

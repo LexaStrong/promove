@@ -4,17 +4,18 @@ import React, { useState, useEffect } from 'react';
 import {
   Building2, Users, Shield, History, Plus,
   Save, CheckCircle2, UserCheck, Lock, Smartphone,
-  Info
+  Info, Palette
 } from 'lucide-react';
 import { mockOrg, mockUsers, mockAuditLogs } from '@/lib/mock-data';
 import { Role } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
 import { useFleet } from '@/lib/fleet-context';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function SettingsPage() {
   const { user, org } = useAuth();
   const { isDemo, orgName, setOrgName } = useFleet();
-  const [activeTab, setActiveTab] = useState<'org' | 'team' | 'security' | 'audit'>('org');
+  const [activeTab, setActiveTab] = useState<'org' | 'team' | 'appearance' | 'security' | 'audit'>('org');
 
   // Org form state
   const [orgForm, setOrgForm] = useState({
@@ -118,6 +119,13 @@ export default function SettingsPage() {
         >
           <Users size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: '-2px' }} />
           Team & Roles
+        </button>
+        <button
+          className={`pm-tab ${activeTab === 'appearance' ? 'active' : ''}`}
+          onClick={() => setActiveTab('appearance')}
+        >
+          <Palette size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: '-2px' }} />
+          Appearance & Theme
         </button>
         <button
           className={`pm-tab ${activeTab === 'security' ? 'active' : ''}`}
@@ -260,6 +268,41 @@ export default function SettingsPage() {
                     ProMove stores all monetary figures in integer pesewas (GH₵ 1 = 100 pesewas). Floating-point rounding discrepancies are strictly prevented across all ledger calculations.
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab: Appearance & Theme */}
+      {activeTab === 'appearance' && (
+        <div style={{ maxWidth: 760 }}>
+          <div className="pm-card" style={{ padding: 'var(--pm-space-6)', marginBottom: 'var(--pm-space-6)' }}>
+            <h3 style={{ marginBottom: 'var(--pm-space-2)' }}>Interface Theme & Contrast</h3>
+            <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem', marginBottom: 'var(--pm-space-6)' }}>
+              Choose your preferred color theme across all sessions. Changes are automatically saved and synchronized across all your devices and browser sessions.
+            </p>
+
+            <ThemeToggle variant="segmented" />
+
+            <div
+              style={{
+                marginTop: 'var(--pm-space-6)',
+                padding: 'var(--pm-space-4)',
+                borderRadius: 'var(--pm-radius-md)',
+                background: 'var(--pm-bg-subtle)',
+                border: '1px solid var(--pm-border)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 12,
+              }}
+            >
+              <Info size={18} style={{ color: 'var(--pm-text-link)', flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)', lineHeight: 1.5 }}>
+                <strong style={{ color: 'var(--pm-text)', display: 'block', marginBottom: 2 }}>
+                  Persistent Cross-Session Theme
+                </strong>
+                When set to <em>System</em>, ProMove automatically adapts to your operating system or mobile device light/dark preferences. Your preference is applied across all vehicle tracking maps, live corridors, daily ledgers, and administration consoles.
               </div>
             </div>
           </div>

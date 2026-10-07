@@ -2,7 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getAdminSessionFromRequest } from '@/lib/admin-auth';
 import { query } from '@/lib/db';
 import { telemetryHub } from '@/lib/gps/telemetry-hub';
-import { fleetPositions } from '@/lib/gps/fleet-positions';
+
 
 export interface AdminVehicleItem {
   id: string;
@@ -35,7 +35,7 @@ export interface AdminVehicleItem {
     location_label: string;
     timestamp: string;
     status: string;
-  };
+  } | null;
 }
 
 export async function GET(req: NextRequest) {
@@ -62,6 +62,7 @@ export async function GET(req: NextRequest) {
         LEFT JOIN organisations o ON v.org_id = o.id
         LEFT JOIN vehicle_assignments va ON v.id = va.vehicle_id AND va.is_active = true
         LEFT JOIN drivers d ON va.driver_id = d.id
+        WHERE v.status IS NULL OR v.status NOT IN ('archived', 'deleted', 'inactive')
         ORDER BY v.created_at DESC
       `);
     } catch (dbErr) {
@@ -86,17 +87,6 @@ export async function GET(req: NextRequest) {
                (imei && p.imei === imei)
         );
       }
-      // If still no GPS blip, pick corridor default for realistic monitoring
-      if (!livePos) {
-        const fallback = fleetPositions.find(p => p.plateNumber.replace(/\s+/g, '') === cleanPlate.replace(/\s+/g, '')) || fleetPositions[0];
-        livePos = {
-          ...fallback,
-          plateNumber: cleanPlate,
-          vehicleId: v.id,
-          imei: imei || fallback.imei,
-        };
-      }
-
       list.push({
         id: v.id,
         plate_number: cleanPlate,
@@ -106,70 +96,30 @@ export async function GET(req: NextRequest) {
         vehicle_type: v.vehicle_type || 'trotro',
         fuel_type: v.fuel_type || 'diesel',
         seats: v.seats || 15,
-        status: (livePos?.status as any) || v.status || 'active',
-        odometer_km: v.current_odometer_km || 42800,
+        status: (livePos?.status as any) || v.status || 'parked',
+        odometer_km: v.current_odometer_km || 0,
         owner_name: v.org_name || 'Individual Fleet Owner',
-        owner_email: v.org_email || `${(v.org_name || 'owner').toLowerCase().replace(/\s+/g, '-')}@promovegh.com`,
+        owner_email: v.org_email || '',
         org_name: v.org_name || 'Fleet Operator',
         org_id: v.org_id,
-        driver_name: v.driver_name || livePos?.driverName || 'Assigned Driver',
-        driver_phone: v.driver_phone || '+233 24 000 1122',
-        driver_license: 'GH-DL-' + Math.floor(100000 + Math.random() * 900000),
-        driver_safety_score: 94,
-        gps_tracker_imei: imei || livePos?.imei || 'UNASSIGNED',
-        gps_protocol: 'GT06 / Traccar 5055',
-        live_location: {
-          latitude: livePos ? livePos.latitude : 5.5600,
-          longitude: livePos ? livePos.longitude : -0.2050,
-          speed_kmh: livePos ? livePos.speedKmh : 0,
-          course_heading: livePos ? livePos.courseHeading : 0,
-          ignition: livePos ? livePos.ignition : false,
-          battery_percentage: livePos ? livePos.batteryPercentage : 95,
-          location_label: livePos?.locationLabel || 'Greater Accra Transit Corridor',
-          timestamp: livePos?.timestamp || 'Live now',
-          status: livePos?.status || 'idle',
-        },
+        driver_name: v.driver_name || livePos?.driverName || 'Unassigned',
+        driver_phone: v.driver_phone || '',
+        driver_license: 'GH-DL-UNASSIGNED',
+        driver_safety_score: 95,
+        gps_tracker_imei: imei || 'UNASSIGNED',
+        gps_protocol: imei ? 'GT06 / Traccar 5055' : 'None',
+        live_location: livePos ? {
+          latitude: livePos.latitude,
+          longitude: livePos.longitude,
+          speed_kmh: livePos.speedKmh,
+          course_heading: livePos.courseHeading,
+          ignition: livePos.ignition,
+          battery_percentage: livePos.batteryPercentage,
+          location_label: livePos.locationLabel,
+          timestamp: livePos.timestamp,
+          status: livePos.status,
+        } : null,
       });
-    }
-
-    // 3. Ensure all live corridor telemetry fleet positions are represented in supervisor list
-    for (const fp of fleetPositions) {
-      const cleanPlate = fp.plateNumber.toUpperCase().trim();
-      if (!seenPlates.has(cleanPlate)) {
-        seenPlates.add(cleanPlate);
-        list.push({
-          id: fp.vehicleId,
-          plate_number: cleanPlate,
-          make: cleanPlate.startsWith('GE') ? 'Toyota' : cleanPlate.startsWith('GT') ? 'Mercedes-Benz' : 'Hyundai',
-          model: cleanPlate.startsWith('GE') ? 'Hiace Commuter' : cleanPlate.startsWith('GT') ? 'Sprinter 316' : 'i10 Grand',
-          year: 2022,
-          vehicle_type: cleanPlate.startsWith('GE') ? 'trotro' : cleanPlate.startsWith('GT') ? 'bus' : 'taxi',
-          fuel_type: cleanPlate.startsWith('GT') ? 'diesel' : 'petrol',
-          seats: cleanPlate.startsWith('GE') ? 15 : cleanPlate.startsWith('GT') ? 22 : 4,
-          status: fp.status as any,
-          odometer_km: 36400,
-          owner_name: 'Accra Metro Fleet Group',
-          owner_email: 'fleet@accrametro.gh',
-          org_name: 'Accra Metro Transport Union',
-          driver_name: fp.driverName || 'Kweku Addo',
-          driver_phone: '+233 24 555 4321',
-          driver_license: 'GH-DL-849201',
-          driver_safety_score: 96,
-          gps_tracker_imei: fp.imei || '864201049281700',
-          gps_protocol: 'GT06 Standard',
-          live_location: {
-            latitude: fp.latitude,
-            longitude: fp.longitude,
-            speed_kmh: fp.speedKmh,
-            course_heading: fp.courseHeading,
-            ignition: fp.ignition,
-            battery_percentage: fp.batteryPercentage,
-            location_label: fp.locationLabel,
-            timestamp: fp.timestamp,
-            status: fp.status,
-          },
-        });
-      }
     }
 
     return NextResponse.json({

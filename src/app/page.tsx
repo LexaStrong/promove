@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/nextjs';
 import { siteUrl } from '@/lib/site';
+import MobileSplashScreen from '@/components/mobile-splash-screen';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const features = [
   {
@@ -73,8 +75,14 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div>
-      {/* Nav */}
+    <div className="pm-landing-root">
+      {/* Mobile Splash Screen Section */}
+      <div className="pm-mobile-splash-wrapper">
+        <MobileSplashScreen />
+      </div>
+
+      <div className="pm-desktop-landing-content" id="pm-landing-details">
+        {/* Nav */}
       <nav className="pm-landing-nav">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -83,7 +91,8 @@ export default function LandingPage() {
           className="pm-brand-lockup pm-brand-lockup-landing"
           style={{ width: 200, maxWidth: '40%', height: 'auto', flexShrink: 0 }}
         />
-        <div className="pm-landing-nav-actions">
+        <div className="pm-landing-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <ThemeToggle />
           <Show when="signed-out">
             <SignInButton mode="modal" forceRedirectUrl="/dashboard">
               <button type="button" className="pm-btn pm-btn-ghost">Sign in</button>
@@ -332,6 +341,7 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }

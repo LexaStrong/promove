@@ -245,7 +245,7 @@ export default function FleetIntelligencePage() {
           <TrendingUp size={18} /> Owner Insights Digest (Plain Language)
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 'var(--pm-space-4)' }}>
-          <div style={{ background: '#FFFFFF', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
+          <div style={{ background: 'var(--pm-surface)', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-error)', textTransform: 'uppercase' }}>
               Suspected Fuel Siphoning Alert
             </div>
@@ -254,7 +254,7 @@ export default function FleetIntelligencePage() {
             </p>
           </div>
 
-          <div style={{ background: '#FFFFFF', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
+          <div style={{ background: 'var(--pm-surface)', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-success)', textTransform: 'uppercase' }}>
               Top Performing Driver
             </div>
@@ -263,7 +263,7 @@ export default function FleetIntelligencePage() {
             </p>
           </div>
 
-          <div style={{ background: '#FFFFFF', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
+          <div style={{ background: 'var(--pm-surface)', padding: 'var(--pm-space-4)', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border)' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-warning)', textTransform: 'uppercase' }}>
               Maintenance Countdown
             </div>

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { writeFleetWorkspace } from '@/lib/fleet-storage';
+import { ThemeToggle } from '@/components/theme-toggle';
 import {
   getCuratedMakes,
   getCuratedModels,
@@ -323,13 +324,16 @@ export default function OnboardingPage() {
             🇬🇭 Onboarding Setup
           </span>
         </div>
-        <div className="pm-onboarding-step-indicator">
-          <span className="pm-onboarding-step-full">
-            Step 2 of 2 • Fleet Configuration
-          </span>
-          <span className="pm-onboarding-step-mobile">
-            🇬🇭 Step 2 of 2
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ThemeToggle />
+          <div className="pm-onboarding-step-indicator">
+            <span className="pm-onboarding-step-full">
+              Step 2 of 2 • Fleet Configuration
+            </span>
+            <span className="pm-onboarding-step-mobile">
+              🇬🇭 Step 2 of 2
+            </span>
+          </div>
         </div>
       </header>
 

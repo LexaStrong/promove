@@ -83,52 +83,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. Fallback default active platform incidents
-    if (list.length === 0) {
-      list.push(
-        {
-          id: 'inc-001',
-          vehicle_id: 'veh-2',
-          plate_number: 'GT 1892-23',
-          driver_name: 'Kofi Owusu',
-          driver_phone: '+233 24 555 4321',
-          incident_type: 'overspeed',
-          severity: 'high',
-          description: 'Vehicle exceeded 80 km/h speed threshold on Mallam - Winneba transit artery.',
-          location_text: 'Mallam Junction, Winneba Road Artery',
-          status: 'open',
-          reported_at: new Date(Date.now() - 18 * 60000).toISOString(),
-        },
-        {
-          id: 'inc-002',
-          vehicle_id: 'veh-ge3797',
-          plate_number: 'GE 3797-20',
-          driver_name: 'Kweku Addo',
-          driver_phone: '+233 20 891 2345',
-          incident_type: 'breakdown',
-          severity: 'medium',
-          description: 'Alternator warning signal triggered; driver parked off transit lane for inspection.',
-          location_text: 'Tema Port & Motorway Transit Corridor',
-          status: 'in_progress',
-          reported_at: new Date(Date.now() - 65 * 60000).toISOString(),
-        },
-        {
-          id: 'inc-003',
-          vehicle_id: 'veh-1',
-          plate_number: 'GR 4521-22',
-          driver_name: 'Kwame Mensah',
-          driver_phone: '+233 55 123 9876',
-          incident_type: 'geofence_breach',
-          severity: 'low',
-          description: 'Vehicle crossed Circle terminal boundary during off-peak scheduling.',
-          location_text: 'Kwame Nkrumah Interchange, Circle',
-          status: 'resolved',
-          reported_at: new Date(Date.now() - 180 * 60000).toISOString(),
-          resolved_at: new Date(Date.now() - 90 * 60000).toISOString(),
-          resolution_notes: 'Driver confirmed detour due to road maintenance near Ring Road Central.',
-        }
-      );
-    }
+
 
     // Apply runtime overrides (e.g. if admin resolved one in this session)
     const finalized = list.map(item => {

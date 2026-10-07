@@ -1,18 +1,24 @@
 import crypto from 'crypto';
 import type { NextRequest } from 'next/server';
+import { createClerkClient } from '@clerk/backend';
 
-// Authorized admin emails (comma-separated list from env, with secure enterprise fallbacks)
+// Authorized admin emails (comma-separated list from env)
 const rawAdminEmails = process.env.ADMIN_EMAIL || 'admin@promovegh.com,admin@promove.com,heisreincarnated@gmail.com';
 export const AUTHORIZED_ADMIN_EMAILS = rawAdminEmails
   .split(',')
   .map(e => e.trim().toLowerCase())
   .filter(Boolean);
 
-// Master Admin Password configured strictly on server
-export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'ProMove@Admin2026!';
-
-// Secret for HMAC session token signing
-export const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'promove_enterprise_admin_sec_2026_x89a';
+// Session signing secret strictly from environment variables without hardcoded fallbacks
+function getSessionSigningSecret(): string {
+  const secret = process.env.ADMIN_SESSION_SECRET || process.env.CLERK_SECRET_KEY;
+  if (secret) return secret;
+  // Ephemeral in-memory fallback for current process instance
+  if (!(globalThis as any).__pm_ephemeral_admin_sec) {
+    (globalThis as any).__pm_ephemeral_admin_sec = crypto.randomBytes(32).toString('hex');
+  }
+  return (globalThis as any).__pm_ephemeral_admin_sec;
+}
 
 export const ADMIN_COOKIE_NAME = 'pm_admin_session';
 
@@ -24,40 +30,89 @@ export interface AdminSessionPayload {
 }
 
 /**
- * Constant-time string comparison to prevent timing side-channel attacks
+ * Constant-time comparison using SHA-256 digests to eliminate timing and length side-channel leaks
  */
-function secureCompare(a: string, b: string): boolean {
+export function secureCompare(a: string, b: string): boolean {
   try {
-    const bufA = Buffer.from(a, 'utf8');
-    const bufB = Buffer.from(b, 'utf8');
-    if (bufA.length !== bufB.length) {
-      // Compare against self to consume constant time
-      crypto.timingSafeEqual(bufA, bufA);
-      return false;
-    }
-    return crypto.timingSafeEqual(bufA, bufB);
+    const hashA = crypto.createHash('sha256').update(String(a || '')).digest();
+    const hashB = crypto.createHash('sha256').update(String(b || '')).digest();
+    return crypto.timingSafeEqual(hashA, hashB);
   } catch {
     return false;
   }
 }
 
 /**
- * Verify administrator email and password against server configuration
+ * Authenticates admin credentials strictly via Clerk Backend Identity Engine.
+ * Verifies that the user exists in Clerk, possesses platform administrator authority,
+ * and passes live Clerk password verification.
+ * NO static or preconfigured passwords in source code or environment.
  */
-export function verifyAdminCredentials(emailInput: string, passwordInput: string): boolean {
-  if (!emailInput || !passwordInput) return false;
+export async function verifyAdminCredentials(
+  emailInput: string,
+  passwordInput: string
+): Promise<{ success: boolean; email?: string; error?: string }> {
+  if (!emailInput || !passwordInput) {
+    return { success: false, error: 'Email and password are required.' };
+  }
+
   const normalizedEmail = emailInput.trim().toLowerCase();
+  const clerkSecretKey = process.env.CLERK_SECRET_KEY;
 
-  const isEmailAuthorized = AUTHORIZED_ADMIN_EMAILS.includes(normalizedEmail);
-  const isPasswordCorrect = secureCompare(passwordInput.trim(), ADMIN_PASSWORD.trim());
+  if (!clerkSecretKey) {
+    console.error('Admin auth notice: CLERK_SECRET_KEY is not configured.');
+    return { success: false, error: 'Identity verification engine is not configured.' };
+  }
 
-  return isEmailAuthorized && isPasswordCorrect;
+  try {
+    const clerk = createClerkClient({ secretKey: clerkSecretKey });
+    const userListRes = await clerk.users.getUserList({ emailAddress: [normalizedEmail] });
+    const users = userListRes.data || (Array.isArray(userListRes) ? userListRes : []);
+    const clerkUser = users[0];
+
+    if (!clerkUser) {
+      return { success: false, error: 'Invalid platform administrator credentials.' };
+    }
+
+    // Check platform admin permissions
+    const userRole = (clerkUser.publicMetadata as any)?.role || (clerkUser.privateMetadata as any)?.role;
+    const isAuthorized =
+      userRole === 'platform_admin' ||
+      userRole === 'admin' ||
+      AUTHORIZED_ADMIN_EMAILS.includes(normalizedEmail);
+
+    if (!isAuthorized) {
+      return {
+        success: false,
+        error: 'Access denied: This account does not have platform administrator privileges.',
+      };
+    }
+
+    // Verify password directly against Clerk
+    const verifyRes = await clerk.users.verifyPassword({
+      userId: clerkUser.id,
+      password: passwordInput,
+    });
+
+    if ((verifyRes as any)?.verified === false) {
+      return { success: false, error: 'Invalid platform administrator credentials.' };
+    }
+
+    return { success: true, email: normalizedEmail };
+  } catch (err: any) {
+    if (err?.status === 422 || err?.errors?.[0]?.code === 'incorrect_password') {
+      return { success: false, error: 'Invalid platform administrator credentials.' };
+    }
+    console.error('Clerk password verification exception:', err?.message || err);
+    return { success: false, error: 'Invalid platform administrator credentials.' };
+  }
 }
 
 /**
  * Create a cryptographically signed HMAC token for the administrator session
  */
 export function signAdminSessionToken(email: string): string {
+  const secret = getSessionSigningSecret();
   const payload: AdminSessionPayload = {
     email: email.trim().toLowerCase(),
     role: 'platform_admin',
@@ -67,7 +122,7 @@ export function signAdminSessionToken(email: string): string {
 
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
-    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .createHmac('sha256', secret)
     .update(payloadB64)
     .digest('base64url');
 
@@ -84,10 +139,11 @@ export function verifyAdminSessionToken(token: string | null | undefined): Admin
   if (parts.length !== 2) return null;
 
   const [payloadB64, signature] = parts;
+  const secret = getSessionSigningSecret();
 
   // Verify HMAC signature in constant time
   const expectedSignature = crypto
-    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .createHmac('sha256', secret)
     .update(payloadB64)
     .digest('base64url');
 

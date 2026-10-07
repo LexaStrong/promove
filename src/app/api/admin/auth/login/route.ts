@@ -19,17 +19,17 @@ export async function POST(req: Request) {
     }
 
     const emailStr = String(email).trim().toLowerCase();
-    const isValid = verifyAdminCredentials(emailStr, String(password));
-    if (!isValid) {
+    const authResult = await verifyAdminCredentials(emailStr, String(password));
+    if (!authResult.success) {
       logSecurityAudit({
         action: 'ADMIN_LOGIN_FAILED',
         actor: emailStr,
         severity: 'high',
-        details: { message: 'Failed administrative credentials challenge' },
+        details: { message: authResult.error || 'Failed administrative credentials challenge' },
       });
 
       return NextResponse.json(
-        { error: 'Invalid platform administrator credentials.' },
+        { error: authResult.error || 'Invalid platform administrator credentials.' },
         { status: 401 }
       );
     }

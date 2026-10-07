@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowRight, ArrowLeft, Eye, EyeOff, Building2, User, Phone, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthBrandPanel from '@/components/auth-brand-panel';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 function RegisterForm() {
   const router = useRouter();
@@ -81,15 +82,18 @@ function RegisterForm() {
                 <ArrowLeft size={15} />
                 <span>{isAdminSignup ? 'Back to Admin Portal' : 'Back to ProMove'}</span>
               </Link>
-              <span style={{
-                fontSize: '0.75rem', fontWeight: 600,
-                color: isAdminSignup ? 'var(--pm-blue-700)' : 'var(--pm-text-muted)',
-                background: isAdminSignup ? 'var(--pm-blue-100)' : 'transparent',
-                padding: isAdminSignup ? '2px 8px' : '0',
-                borderRadius: 'var(--pm-radius-sm)',
-              }}>
-                {isAdminSignup ? '🛡️ Admin Account Creation' : '🇬🇭 Ghana Fleet Registration'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <ThemeToggle />
+                <span style={{
+                  fontSize: '0.75rem', fontWeight: 600,
+                  color: isAdminSignup ? 'var(--pm-blue-700)' : 'var(--pm-text-muted)',
+                  background: isAdminSignup ? 'var(--pm-blue-100)' : 'transparent',
+                  padding: isAdminSignup ? '2px 8px' : '0',
+                  borderRadius: 'var(--pm-radius-sm)',
+                }}>
+                  {isAdminSignup ? '🛡️ Admin Account Creation' : '🇬🇭 Ghana Fleet Registration'}
+                </span>
+              </div>
             </div>
 
             <header className="pm-login-heading">

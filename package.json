@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/tenancy.test.ts tests/money-flow.test.ts tests/offline-sync.test.ts tests/load-report.test.ts tests/sandbox.test.ts tests/gps-tracking.test.ts tests/admin-security.test.ts",
+    "test": "node --experimental-strip-types --test tests/tenancy.test.ts tests/money-flow.test.ts tests/offline-sync.test.ts tests/load-report.test.ts tests/sandbox.test.ts tests/gps-tracking.test.ts tests/admin-security.test.ts tests/theme-session.test.ts",
     "security:sast": "tsc --noEmit",
     "security:sca": "npm audit --omit=dev",
     "security:dast": "node --experimental-strip-types --test tests/admin-security.test.ts",

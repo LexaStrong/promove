@@ -3,7 +3,6 @@
 // Evaluates Ghana corridor geofences and safety thresholds
 
 import { GpsPosition, GpsAlert, traccarAdapter, Geofence } from './traccar-adapter';
-import { fleetPositions } from './fleet-positions';
 
 // Major Ghana Transit Corridor Geofences
 export const ghanaCorridorGeofences: Geofence[] = [
@@ -82,14 +81,6 @@ export const ghanaCorridorGeofences: Geofence[] = [
 // In-memory telemetry cache (keyed by vehicleId or IMEI)
 const livePositionsMap = new Map<string, GpsPosition>();
 const liveAlertsList: GpsAlert[] = [];
-
-// Seed with default corridor positions on startup
-for (const pos of fleetPositions) {
-  livePositionsMap.set(pos.vehicleId, pos);
-  if (pos.imei) {
-    livePositionsMap.set(pos.imei, pos);
-  }
-}
 
 export interface IngestTelemetryParams {
   vehicleId?: string;

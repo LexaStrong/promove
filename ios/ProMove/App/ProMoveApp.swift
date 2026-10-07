@@ -9,12 +9,22 @@ import SwiftUI
 
 @main
 struct ProMoveApp: App {
-    @StateObject private var store = FleetStore.shared
+    @State private var showSplash: Bool = true
     
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .environmentObject(store)
+            ZStack {
+                if showSplash {
+                    SplashScreenView {
+                        withAnimation(.easeInOut(duration: 0.35)) {
+                            showSplash = false
+                        }
+                    }
+                } else {
+                    MobileWebView()
+                        .transition(.opacity)
+                }
+            }
         }
     }
 }

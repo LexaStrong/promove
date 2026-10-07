@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { siteUrl } from '@/lib/site';
 import './globals.css';
+import { ThemeProvider } from '@/lib/theme-context';
 import { AuthProvider } from '@/lib/auth-context';
 import { FleetProvider } from '@/lib/fleet-context';
 
@@ -22,8 +23,10 @@ export const metadata: Metadata = {
     description:
       'Fleet operations for Ghanaian transport businesses. Track vehicles, drivers, daily income, maintenance, documents, and live positions in one workspace.',
     images: [{
-      url: '/auth-splash-desktop.png',
-      alt: 'ProMove fleet vehicles on a scenic road',
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'ProMove Fleet Operations and Commercial Telematics',
     }],
   },
   twitter: {
@@ -31,7 +34,7 @@ export const metadata: Metadata = {
     title: 'ProMove Fleet Management for Ghana',
     description:
       'Fleet operations for Ghanaian transport businesses. Track vehicles, drivers, daily income, maintenance, documents, and live positions in one workspace.',
-    images: ['/auth-splash-desktop.png'],
+    images: ['/og-image.png'],
   },
   manifest: '/manifest.json',
   icons: {
@@ -62,14 +65,23 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('pm-theme');if(!t){var m=document.cookie.match(/(?:^|; )pm-theme=([^;]*)/);if(m)t=decodeURIComponent(m[1])}var r=(t==='dark'||t==='light')?t:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',r);if(r==='dark'){document.documentElement.classList.add('dark')}else{document.documentElement.classList.remove('dark')}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
         <ClerkProvider publishableKey={clerkPublishableKey}>
-          <AuthProvider>
-            <FleetProvider>
-              {children}
-            </FleetProvider>
-          </AuthProvider>
+          <ThemeProvider>
+            <AuthProvider>
+              <FleetProvider>
+                {children}
+              </FleetProvider>
+            </AuthProvider>
+          </ThemeProvider>
           <Script id="register-sw" strategy="afterInteractive">
           {`
           if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

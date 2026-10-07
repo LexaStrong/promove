@@ -1,10 +1,10 @@
 import React from 'react';
 import Link from 'next/link';
-import { ShieldAlert, Server, Activity, Database, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Server, Activity, Database, KeyRound, CheckCircle2 } from 'lucide-react';
 
 export default function AdminBrandPanel() {
   return (
-    <aside className="pm-login-brand-panel" aria-label="About ProMove Enterprise Administration" style={{ background: 'linear-gradient(180deg, #091924 0%, #061118 100%)' }}>
+    <aside className="pm-login-brand-panel" aria-label="About ProMove Enterprise Administration" style={{ backgroundColor: '#071118', borderRight: '1px solid #1E3A4D' }}>
       {/* Top Brand Header */}
       <div className="pm-auth-brand-header">
         <Link href="/" className="pm-auth-brand-logo-link" aria-label="ProMove home">
@@ -16,26 +16,26 @@ export default function AdminBrandPanel() {
           />
           <div className="pm-auth-brand-logo-text">
             <span className="pm-auth-brand-title">ProMove</span>
-            <span className="pm-auth-brand-subtitle" style={{ color: 'var(--pm-blue-400)' }}>Enterprise Console</span>
+            <span className="pm-auth-brand-subtitle" style={{ color: '#3A96B5' }}>Enterprise Console</span>
           </div>
         </Link>
-        <span className="pm-auth-brand-version-pill" style={{ background: 'rgba(217, 119, 6, 0.15)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+        <span className="pm-auth-brand-version-pill" style={{ backgroundColor: 'rgba(212, 160, 36, 0.15)', color: '#FBBF24', border: '1px solid rgba(251, 191, 36, 0.3)' }}>
           Restricted Portal
         </span>
       </div>
 
       {/* Main Content & Architecture Pillars */}
       <div className="pm-auth-brand-content" style={{ marginTop: 'var(--pm-space-6)' }}>
-        <h1 style={{ fontSize: '1.5rem', lineHeight: 1.3 }}>
-          Platform Infrastructure & Telematics Operations
+        <h1 style={{ fontSize: '1.375rem', lineHeight: 1.3, fontWeight: 700, color: '#F4F7F9', letterSpacing: '-0.02em' }}>
+          Platform Infrastructure and Telematics Operations
         </h1>
-        <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem' }}>
+        <p style={{ color: '#9BB0BD', fontSize: '0.8125rem', lineHeight: 1.5, marginTop: '8px' }}>
           Authorized console for system diagnostics, Traccar telematics routing, multi-tenant Postgres governance, and platform audit logs.
         </p>
 
         <div className="pm-auth-features-list" style={{ marginTop: 'var(--pm-space-6)' }}>
           <div className="pm-auth-feature-item">
-            <div className="pm-auth-feature-icon" style={{ background: 'rgba(58, 150, 181, 0.15)', color: 'var(--pm-blue-400)' }}>
+            <div className="pm-auth-feature-icon" style={{ backgroundColor: 'rgba(58, 150, 181, 0.15)', color: '#3A96B5' }}>
               <Server size={16} />
             </div>
             <div className="pm-auth-feature-text">
@@ -45,7 +45,7 @@ export default function AdminBrandPanel() {
           </div>
 
           <div className="pm-auth-feature-item">
-            <div className="pm-auth-feature-icon" style={{ background: 'rgba(58, 150, 181, 0.15)', color: 'var(--pm-blue-400)' }}>
+            <div className="pm-auth-feature-icon" style={{ backgroundColor: 'rgba(58, 150, 181, 0.15)', color: '#3A96B5' }}>
               <Activity size={16} />
             </div>
             <div className="pm-auth-feature-text">
@@ -55,11 +55,11 @@ export default function AdminBrandPanel() {
           </div>
 
           <div className="pm-auth-feature-item">
-            <div className="pm-auth-feature-icon" style={{ background: 'rgba(58, 150, 181, 0.15)', color: 'var(--pm-blue-400)' }}>
+            <div className="pm-auth-feature-icon" style={{ backgroundColor: 'rgba(58, 150, 181, 0.15)', color: '#3A96B5' }}>
               <KeyRound size={16} />
             </div>
             <div className="pm-auth-feature-text">
-              <h4>Clerk RBAC & Security Key Enforcement</h4>
+              <h4>Clerk RBAC and Security Key Enforcement</h4>
               <p>Restricted to users explicitly assigned the platform_admin role with hardware 2FA.</p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function AdminBrandPanel() {
       {/* Trust & Tenancy Footer */}
       <div className="pm-auth-brand-footer" style={{ marginTop: 'auto', paddingTop: 'var(--pm-space-6)' }}>
         <span className="pm-auth-brand-footer-item">
-          <Database size={13} style={{ color: '#A1D0E0' }} />
+          <Database size={13} style={{ color: '#3A96B5' }} />
           Postgres RLS Enforced
         </span>
         <span className="pm-auth-brand-footer-item">

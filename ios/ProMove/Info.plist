@@ -38,6 +38,17 @@
 		<string>location-services</string>
 		<string>gps</string>
 	</array>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>ProMove requires camera access to capture vehicle condition inspection photos and upload driver identification.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ProMove requires photo library access to upload DVLA documents, roadworthiness certificates, and receipts.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

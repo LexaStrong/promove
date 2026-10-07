@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Lock, Phone, ArrowRight, ArrowLeft, ShieldCheck, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AuthBrandPanel from '@/components/auth-brand-panel';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,9 +59,12 @@ export default function LoginPage() {
                 <ArrowLeft size={15} />
                 <span>Back to ProMove</span>
               </Link>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-text-muted)' }}>
-                🇬🇭 Ghana
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <ThemeToggle />
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-text-muted)' }}>
+                  🇬🇭 Ghana
+                </span>
+              </div>
             </div>
 
             <header className="pm-login-heading">

@@ -193,10 +193,9 @@ NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/onboarding
 # Neon Lakebase Postgres Database
 DATABASE_URL="postgresql://user:pass@ep-hostname-pooler.region.neon.tech/neondb?sslmode=require"
 
-# Platform Administration Credentials (Strict Server-Side Auth)
+# Platform Administration (Clerk-Backed Identity)
 ADMIN_EMAIL="admin@promovegh.com,admin@promove.com,heisreincarnated@gmail.com"
-ADMIN_PASSWORD="ProMove@Admin2026!"
-ADMIN_SESSION_SECRET="promove_enterprise_admin_sec_2026_x89a"
+ADMIN_SESSION_SECRET="your_secure_admin_session_secret"
 
 # Neon Object Storage (S3-Compatible)
 NEON_STORAGE_ENDPOINT="https://storage.region.neon.tech"
@@ -273,13 +272,13 @@ NEON_STORAGE_SECRET_ACCESS_KEY="nsk_live_..."
 
 ---
 
-## Platform Administrator Credentials
+## Platform Administrator Authentication
 
 For authorized administration access via `/admin`:
 
 - **Admin Portal URL:** `http://localhost:3000/admin` (or deployed domain `/admin`)
-- **Authorized Emails:** `admin@promovegh.com`, `admin@promove.com`, `heisreincarnated@gmail.com`
-- **Master Password:** Configured in `ADMIN_PASSWORD` (default: `ProMove@Admin2026!`)
+- **Authentication:** Authenticates directly against the administrator's **Clerk Account Credentials** with `platform_admin` metadata permissions.
+- **Security:** Zero preconfigured or static passwords; managed via Clerk Identity Engine with cryptographic HMAC-SHA256 session token generation.
 
 ---
 

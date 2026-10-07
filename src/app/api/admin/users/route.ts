@@ -99,16 +99,19 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. Include any organisations from Neon not already matched by email
+    // 3. Include verified organisations from Neon not already matched by email
     for (const org of orgRows) {
-      const orgEmail = (org.email || org.phone || '').toLowerCase();
-      if (orgEmail.includes('@') && !seenEmails.has(orgEmail)) {
+      const orgEmail = (org.email || '').toLowerCase().trim();
+      const orgPhone = (org.phone || '').trim();
+      const orgKey = `org-${org.id}`;
+
+      if (orgEmail && !seenEmails.has(orgEmail)) {
         seenEmails.add(orgEmail);
         usersList.push({
-          id: `org-${org.id}`,
+          id: orgKey,
           name: org.name,
           email: orgEmail,
-          phone: org.phone || 'Not provided',
+          phone: orgPhone || 'Not provided',
           organization: org.name,
           org_id: org.id,
           role: 'Fleet Owner',
@@ -116,14 +119,13 @@ export async function GET(req: NextRequest) {
           created_at: org.created_at || new Date().toISOString(),
           status: 'active',
         });
-      } else if (!orgEmail.includes('@')) {
-        // Org with non-email phone/slug
-        const orgKey = `org-${org.id}`;
+      } else if (!orgEmail && orgPhone) {
+        // Real organisation with phone contact
         usersList.push({
           id: orgKey,
           name: org.name,
-          email: `${org.slug || 'fleet'}@promovegh.com`,
-          phone: org.phone || '+233244000000',
+          email: '',
+          phone: orgPhone,
           organization: org.name,
           org_id: org.id,
           role: 'Fleet Owner',
@@ -134,44 +136,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 4. Fallback default fleet users if list is small (e.g. initial demo setup)
-    if (usersList.length < 3) {
-      usersList.push(
-        {
-          id: 'usr-kofi',
-          name: 'Kofi Mensah',
-          email: 'kofi.mensah@ghanatransport.com',
-          phone: '+233 24 456 7890',
-          organization: 'Accra Metro Express',
-          role: 'Fleet Owner',
-          vehicles_count: 4,
-          created_at: '2026-09-12T10:00:00Z',
-          status: 'active',
-        },
-        {
-          id: 'usr-ama',
-          name: 'Ama Osei',
-          email: 'ama.osei@coastallogistics.gh',
-          phone: '+233 20 891 2345',
-          organization: 'Tema Container Haulers',
-          role: 'Fleet Manager',
-          vehicles_count: 6,
-          created_at: '2026-09-15T14:20:00Z',
-          status: 'active',
-        },
-        {
-          id: 'usr-kwame',
-          name: 'Kwame Boateng',
-          email: 'kwame.boateng@rapidtrotro.com',
-          phone: '+233 55 123 9876',
-          organization: 'Circle Neoplan Trotro Union',
-          role: 'Fleet Owner',
-          vehicles_count: 5,
-          created_at: '2026-09-20T08:45:00Z',
-          status: 'active',
-        }
-      );
-    }
+
 
     // Sort by creation date descending
     usersList.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

@@ -1,20 +1,21 @@
-# ProMove Fleet — Android Native App
+# ProMove Fleet — Android Native Shell
 
-Native Android Application built with **Kotlin** and **Jetpack Compose** for commercial fleet management in Ghana (Trotros, Taxis, Intercity Buses, Haulage/Tippers, and Delivery Vans).
+Native Android Application built with **Kotlin 2.3+** and **Jetpack Compose** rendering the complete, full-featured **ProMove Mobile Web Platform** with native splash screen, edge-to-edge system bars, bi-directional Clerk session persistence, hardware-accelerated GPS telemetry, and native file chooser capabilities.
 
 ---
 
-## 📱 Tech Stack & Architecture
+## 📱 Architecture & Highlights
 
-- **Language:** Kotlin 2.3+
-- **UI Toolkit:** Jetpack Compose (Material 3) with custom ProMove design tokens
-- **Architecture:** Clean Architecture + Unidirectional Data Flow (StateFlow / Coroutines)
-- **Networking:** `ProMoveNetworkClient` (HTTP/JSON serialization targeting `/api/gps/telemetry`, `/api/gps/positions`, and `/api/system-status`)
-- **Location Services:** Android `LocationManager` + Foreground Service (`LocationTrackingService`) with persistent status notification for 24/7 background driver telemetry
-- **Ghana Compliance:**
-  - **DVLA Plate Validator (`GhanaPlateValidator`):** Validates all 16 Ghanaian regional prefixes (`GR`, `GW`, `GS`, `GE`, `GT`, `GN`, `AS`, `BA`, `CR`, `ER`, `VR`, `WR`, `NR`, `UE`, `UW`, `DV`, `DP`) and enforces Act 843 conventions.
-  - **Curated Commercial Vehicle Catalog:** Direct dropdown selection for Ghana's most popular commercial vehicles (Toyota HiAce, Hyundai i10, Mercedes Sprinter, HOWO Sinotruk, Suzuki Super Carry, DAF CF, etc.).
-  - **Ghana Cedi & Pesewas Currency Precision:** Exact integer pesewas calculations.
+- **Native Mobile Shell:** Powered by high-performance Android `WebView` (`ProMoveWebView.kt`), providing the exact responsive UI, live Neon Postgres data, Clerk authentication, live radar tracking, offline capabilities, and fleet management tools of the mobile web app.
+- **Native Mobile Splash Screen:** Full-bleed Ghana fleet graphic artwork with dynamic gradient overlay, live status badge (`GHANA FLEET OS • v1.0`), and tactile **"Continue"** button leading directly into the live mobile application.
+- **Session & Cookie Persistence:** Bi-directional cookie synchronization via Android `CookieManager` preserving Clerk tokens and tenant sessions across app restarts.
+- **Hardware & Sensor Integration:**
+  - Integrated file chooser launcher for vehicle inspection photos, DVLA documents, and driver license uploads.
+  - Native geolocation prompt delegation for driver speed and live map tracking.
+- **UX & Gesture Enhancements:**
+  - Hardware back button interception for natural web navigation.
+  - Linear loading progress indicator at the top of the viewport.
+  - Offline / Connection retry fallback card styled with ProMove Deep Sea theme.
 
 ---
 
@@ -26,35 +27,19 @@ android/
 │   ├── build.gradle.kts
 │   └── src/main/
 │       ├── AndroidManifest.xml
+│       ├── res/drawable/splash_graphic.png    # High-resolution mobile fleet artwork
 │       └── java/com/promove/fleet/
-│           ├── MainActivity.kt                # App entry point & runtime permissions
+│           ├── MainActivity.kt                # App entry point & splash-to-webview router
 │           ├── core/
-│           │   ├── Constants.kt               # Endpoints, Ghana regions, intervals
+│           │   ├── Constants.kt               # Local emulator (10.0.2.2) and prod endpoints
 │           │   └── GhanaPlateValidator.kt     # DVLA plate validation regex & logic
-│           ├── data/
-│           │   ├── model/
-│           │   │   ├── Vehicle.kt             # Vehicle, Type, Status, Fuel
-│           │   │   ├── VehicleCatalog.kt      # Curated Ghana commercial catalog
-│           │   │   └── TelemetryPing.kt       # GPS coordinates, speed, battery
-│           │   ├── network/
-│           │   │   └── ProMoveNetworkClient.kt# Backend API client
-│           │   └── repository/
-│           │       └── FleetRepository.kt     # Central fleet StateFlow & sync
-│           ├── service/
-│           │   └── LocationTrackingService.kt # Foreground GPS transmitter service
 │           ├── theme/
 │           │   ├── Color.kt                   # Brand tokens (Navy, Sea Blue, Amber)
-│           │   └── Theme.kt                   # Light & dark theme definitions
+│           │   └── Theme.kt                   # Theme definitions
 │           └── ui/
-│               ├── MainAppScaffold.kt         # Root Bottom Navigation scaffold
-│               ├── components/
-│               │   └── ProMoveComponents.kt   # DVLA plate badge, Status chip, Metric card
+│               ├── ProMoveWebView.kt          # Full WebView mobile engine container
 │               └── screens/
-│                   ├── DashboardScreen.kt     # Overview KPIs & vehicle table
-│                   ├── VehiclesScreen.kt      # Filterable vehicle roster & FAB
-│                   ├── AddVehicleDialog.kt    # Curated make/model picker & DVLA validator
-│                   ├── DriverTrackerScreen.kt # High-precision GPS speedometer HUD
-│                   └── FleetMapScreen.kt      # Interactive fleet radar & live pin viewer
+│                   └── SplashScreen.kt        # Native mobile splash screen
 └── build.gradle.kts
 ```
 
@@ -71,14 +56,10 @@ android/
 cd android
 ./gradlew assembleDebug
 ```
-The APK will be generated at:
+The APK is generated at:
 `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ### Install on Device or Emulator
 ```bash
 ./gradlew installDebug
-```
-or via the Android CLI:
-```bash
-android run --device=<device_id>
 ```

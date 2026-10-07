@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-// Replicating and auditing the security logic deployed in src/lib/admin-auth.ts
-const ADMIN_PASSWORD = 'ProMove@Admin2026!';
-const ADMIN_SESSION_SECRET = 'promove_enterprise_admin_sec_2026_x89a';
+// Unit-test test fixtures (no hardcoded production secrets)
+const TEST_SIGNING_SECRET = 'unit_test_ephemeral_signing_secret_32bytes_sample';
 const AUTHORIZED_ADMIN_EMAILS = [
   'admin@promovegh.com',
   'admin@promove.com',
@@ -21,12 +20,51 @@ function secureCompare(a: string, b: string): boolean {
   }
 }
 
-function verifyAdminCredentials(emailInput: string, passwordInput: string): boolean {
-  if (!emailInput || !passwordInput) return false;
-  const normalizedEmail = emailInput.trim().toLowerCase();
-  const isEmailAuthorized = AUTHORIZED_ADMIN_EMAILS.includes(normalizedEmail);
-  const isPasswordCorrect = secureCompare(passwordInput.trim(), ADMIN_PASSWORD.trim());
-  return isEmailAuthorized && isPasswordCorrect;
+// Simulated Clerk-backed admin identity validation logic
+interface MockClerkUser {
+  id: string;
+  email: string;
+  role: string;
+  passwordHash: string;
+}
+
+const mockClerkDirectory: MockClerkUser[] = [
+  {
+    id: 'user_admin_001',
+    email: 'admin@promovegh.com',
+    role: 'platform_admin',
+    passwordHash: crypto.createHash('sha256').update('ClerkAdminPasswordTest123!').digest('hex'),
+  },
+  {
+    id: 'user_regular_002',
+    email: 'driver@test.gh',
+    role: 'driver',
+    passwordHash: crypto.createHash('sha256').update('DriverPasswordTest123!').digest('hex'),
+  },
+];
+
+function simulateClerkAdminAuth(emailInput: string, passwordInput: string): { success: boolean; error?: string } {
+  if (!emailInput || !passwordInput) {
+    return { success: false, error: 'Email and password are required.' };
+  }
+
+  const normalized = emailInput.trim().toLowerCase();
+  const user = mockClerkDirectory.find(u => u.email === normalized);
+  if (!user) {
+    return { success: false, error: 'Invalid platform administrator credentials.' };
+  }
+
+  const isAuthorized = user.role === 'platform_admin' || AUTHORIZED_ADMIN_EMAILS.includes(normalized);
+  if (!isAuthorized) {
+    return { success: false, error: 'Access denied: Insufficient administrator privileges.' };
+  }
+
+  const inputHash = crypto.createHash('sha256').update(passwordInput).digest('hex');
+  if (!secureCompare(inputHash, user.passwordHash)) {
+    return { success: false, error: 'Invalid platform administrator credentials.' };
+  }
+
+  return { success: true };
 }
 
 function signAdminSessionToken(email: string): string {
@@ -38,7 +76,7 @@ function signAdminSessionToken(email: string): string {
   };
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
-    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .createHmac('sha256', TEST_SIGNING_SECRET)
     .update(payloadB64)
     .digest('base64url');
   return `${payloadB64}.${signature}`;
@@ -50,7 +88,7 @@ function verifyAdminSessionToken(token: string | null | undefined): any | null {
   if (parts.length !== 2) return null;
   const [payloadB64, signature] = parts;
   const expectedSignature = crypto
-    .createHmac('sha256', ADMIN_SESSION_SECRET)
+    .createHmac('sha256', TEST_SIGNING_SECRET)
     .update(payloadB64)
     .digest('base64url');
   if (!secureCompare(signature, expectedSignature)) return null;
@@ -66,16 +104,16 @@ function verifyAdminSessionToken(token: string | null | undefined): any | null {
   }
 }
 
-test('Admin Security: Validates authorized admin credentials correctly', () => {
-  const valid = verifyAdminCredentials('admin@promovegh.com', 'ProMove@Admin2026!');
-  assert.strictEqual(valid, true, 'Valid admin email and password must authenticate successfully');
+test('Admin Security: Validates authorized Clerk admin credentials correctly', () => {
+  const result = simulateClerkAdminAuth('admin@promovegh.com', 'ClerkAdminPasswordTest123!');
+  assert.strictEqual(result.success, true, 'Valid Clerk admin credentials must authenticate successfully');
 });
 
-test('Admin Security: Deny-by-default rejects invalid admin credentials or attackers', () => {
-  assert.strictEqual(verifyAdminCredentials('admin@promovegh.com', 'WrongPassword123'), false);
-  assert.strictEqual(verifyAdminCredentials('attacker@malicious.com', 'ProMove@Admin2026!'), false);
-  assert.strictEqual(verifyAdminCredentials('', ''), false);
-  assert.strictEqual(verifyAdminCredentials('admin@promovegh.com', ''), false);
+test('Admin Security: Deny-by-default rejects invalid credentials, non-admins, or attackers', () => {
+  assert.strictEqual(simulateClerkAdminAuth('admin@promovegh.com', 'WrongPassword123').success, false);
+  assert.strictEqual(simulateClerkAdminAuth('attacker@malicious.com', 'ClerkAdminPasswordTest123!').success, false);
+  assert.strictEqual(simulateClerkAdminAuth('', '').success, false);
+  assert.strictEqual(simulateClerkAdminAuth('driver@test.gh', 'DriverPasswordTest123!').success, false);
 });
 
 test('Admin Security: Signs and verifies tamper-evident HMAC admin session tokens', () => {
