@@ -116,8 +116,12 @@ export function FleetProvider({ children }: { children: ReactNode }) {
     // Older builds stored fleet data under shared, unscoped keys; drop them
     purgeLegacyFleetKeys();
 
-    // Load registered fleet info
-    const registered = readStorage<any>(keysRef.current.FLEET_INFO, null);
+    // Load registered fleet info (scoped to active user, with fallback to local workspace)
+    let registered = readStorage<any>(keysRef.current.FLEET_INFO, null);
+    if (!registered && userId) {
+      registered = readStorage<any>(fleetKey(FLEET_STORAGE_BASE.FLEET_INFO, null), null);
+    }
+
     if (registered?.orgName && registered.orgName !== 'Twum Transport Services') {
       setOrgNameState(registered.orgName);
     } else if (org?.name && org.name !== 'Twum Transport Services') {
@@ -127,7 +131,10 @@ export function FleetProvider({ children }: { children: ReactNode }) {
     }
 
     // Load registered vehicles from vehicles store or registered fleet
-    const storedVehicles = readStorage<Vehicle[]>(keysRef.current.VEHICLES, []);
+    let storedVehicles = readStorage<Vehicle[]>(keysRef.current.VEHICLES, []);
+    if (storedVehicles.length === 0 && userId) {
+      storedVehicles = readStorage<Vehicle[]>(fleetKey(FLEET_STORAGE_BASE.VEHICLES, null), []);
+    }
     const mockPlates = ['GR 4521-22', 'GW 3312-22', 'GE 3797-22', 'GS 8821-21', 'GT 6044-22', 'GN 1920-22', 'GX 5501-23', 'AS 8900-21'];
     const filteredVehicles = storedVehicles.filter(v => !mockPlates.includes(v.plate_number));
 
@@ -165,8 +172,12 @@ export function FleetProvider({ children }: { children: ReactNode }) {
       setUserVehicles([]);
     }
 
-    // Load other collections (all empty by default for fresh sign ups)
-    setUserDrivers(readStorage<Driver[]>(keysRef.current.DRIVERS, []));
+    // Load other collections (with fallback for drivers)
+    let storedDrivers = readStorage<Driver[]>(keysRef.current.DRIVERS, []);
+    if (storedDrivers.length === 0 && userId) {
+      storedDrivers = readStorage<Driver[]>(fleetKey(FLEET_STORAGE_BASE.DRIVERS, null), []);
+    }
+    setUserDrivers(storedDrivers);
     setUserLedger(readStorage<LedgerEntry[]>(keysRef.current.LEDGER, []));
     setUserMaintenance(readStorage<MaintenanceRecord[]>(keysRef.current.MAINTENANCE, []));
     setUserDocuments(readStorage<VehicleDocument[]>(keysRef.current.DOCUMENTS, []));

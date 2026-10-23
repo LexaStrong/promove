@@ -6,8 +6,9 @@ import { useSearchParams } from 'next/navigation';
 import {
   Car, Users, TrendingUp, TrendingDown, AlertTriangle,
   FileText, Wrench, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, Sparkles, Plus,
+  CheckCircle2, Sparkles, Plus, UserCheck,
 } from 'lucide-react';
+import { useUser as useClerkUser } from '@clerk/nextjs';
 import { formatPesewas } from '@/lib/types';
 import { useFleet } from '@/lib/fleet-context';
 import { useAuth } from '@/lib/auth-context';
@@ -19,6 +20,7 @@ function DashboardContent() {
   }, []);
 
   const { org } = useAuth();
+  const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn } = useClerkUser();
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
 
@@ -80,6 +82,43 @@ function DashboardContent() {
 
   return (
     <div>
+      {/* Clerk Auth Fallback Banner (when operating in local workspace mode) */}
+      {!isDemo && mounted && isClerkLoaded && !isClerkSignedIn && (
+        <div
+          style={{
+            background: 'var(--pm-bg-subtle)',
+            border: '1px solid var(--pm-border-subtle)',
+            borderRadius: 'var(--pm-radius-md)',
+            padding: '12px 16px',
+            marginBottom: 'var(--pm-space-4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <UserCheck size={18} style={{ color: 'var(--pm-text-muted)', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--pm-text)' }}>
+                Local Workspace Active (Clerk Fallback Mode)
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
+                You are operating your fleet locally. Connect your Clerk SSO account anytime to enable cloud synchronization.
+              </div>
+            </div>
+          </div>
+          <Link
+            href="/signup"
+            className="pm-btn pm-btn-secondary pm-btn-sm"
+            style={{ fontSize: '0.75rem', padding: '5px 12px', textDecoration: 'none' }}
+          >
+            Sign in with Clerk SSO &rarr;
+          </Link>
+        </div>
+      )}
+
       {/* Demo Dashboard Notice Banner (when accessed via 'View demo dashboard' button) */}
       {isDemo && (
         <div

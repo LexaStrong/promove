@@ -1,277 +1,159 @@
-'use client';
-
-import React, { useState } from 'react';
+import React, { Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Lock, Phone, ArrowRight, ArrowLeft, ShieldCheck, UserCheck, Eye, EyeOff } from 'lucide-react';
-import { useAuth } from '@/lib/auth-context';
-import AuthBrandPanel from '@/components/auth-brand-panel';
+import type { Metadata } from 'next';
+import { LoginForm } from '@/components/login-form';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { ShieldCheck, MapPin, Fuel, Database } from 'lucide-react';
+import { siteUrl } from '@/lib/site';
+
+export const metadata: Metadata = {
+  title: 'Sign In to Your Fleet | ProMove Ghana',
+  description:
+    'Sign in to your ProMove fleet operations account to manage vehicles, daily pesewa driver collections, GPS tracking, and DVLA compliance.',
+  alternates: {
+    canonical: new URL('/login', siteUrl).toString(),
+  },
+};
 
 export default function LoginPage() {
-  const router = useRouter();
-  const { login } = useAuth();
-
-  const [phone, setPhone] = useState('+233244123456');
-  const [password, setPassword] = useState('password123');
-  const [showPassword, setShowPassword] = useState(false);
-  const [totpCode, setTotpCode] = useState('');
-  const [showTotpInput, setShowTotpInput] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-
-    try {
-      const ok = await login(phone, password, totpCode);
-      if (ok) {
-        router.push('/dashboard');
-      } else {
-        setError('Invalid phone number, password, or 2FA code.');
-      }
-    } catch {
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = (demoPhone: string) => {
-    setPhone(demoPhone);
-    setPassword('password123');
-    login(demoPhone, 'password123').then(() => {
-      router.push('/dashboard');
-    });
-  };
-
   return (
-    <div className="pm-auth-page-wrapper">
-      <main className="pm-login-layout">
-        <AuthBrandPanel mode="login" />
-
-        <section className="pm-login-form-panel" aria-labelledby="pm-login-title">
-          <div className="pm-login-form-inner">
-            <div className="pm-login-top-bar">
-              <Link href="/" className="pm-auth-back-link">
-                <ArrowLeft size={15} />
-                <span>Back to ProMove</span>
-              </Link>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <ThemeToggle />
-                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--pm-text-muted)' }}>
-                  🇬🇭 Ghana
-                </span>
-              </div>
+    <div className="grid min-h-svh lg:grid-cols-2 bg-[var(--pm-bg)]">
+      {/* Left Column: Sign-in Form Container */}
+      <div className="flex flex-col justify-between p-6 sm:p-8 md:p-12 lg:p-14">
+        {/* Top Bar: Brand & Controls */}
+        <div className="flex items-center justify-between pb-6">
+          <Link
+            href="/"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-90"
+            aria-label="ProMove home"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="ProMove Logo"
+              className="h-8 w-8 object-contain"
+            />
+            <div className="flex flex-col">
+              <span className="font-extrabold text-base tracking-tight text-[var(--pm-text)] font-sans">
+                ProMove
+              </span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-[var(--pm-blue-600)]">
+                Fleet Control
+              </span>
             </div>
+          </Link>
 
-            <header className="pm-login-heading">
-              <span>SECURE SIGN-IN</span>
-              <h2 id="pm-login-title">Welcome back</h2>
-              <p>Sign in to access your fleet operations and daily financial ledger.</p>
-            </header>
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[var(--pm-bg-subtle)] border border-[var(--pm-border-subtle)] px-2.5 py-0.5 text-xs font-medium text-[var(--pm-text-muted)]">
+              🇬🇭 Ghana • v1.0
+            </span>
+            <ThemeToggle />
+          </div>
+        </div>
 
-            <div className="pm-card pm-login-card">
-              <Link
-                href="/sign-in"
-                className="pm-btn pm-btn-secondary"
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  marginBottom: 'var(--pm-space-4)',
-                  padding: '10px',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  textDecoration: 'none',
-                  border: '1px solid var(--pm-blue-200)',
-                  backgroundColor: 'var(--pm-blue-50)',
-                  color: 'var(--pm-blue-700)',
-                }}
-              >
-                <ShieldCheck size={16} />
-                <span>Sign in with Clerk SSO / Google</span>
-                <ArrowRight size={14} />
-              </Link>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                textAlign: 'center',
-                margin: 'var(--pm-space-2) 0 var(--pm-space-4)',
-                color: 'var(--pm-text-muted)',
-                fontSize: '0.75rem',
-              }}>
-                <div style={{ flex: 1, height: 1, backgroundColor: 'var(--pm-border)' }} />
-                <span style={{ padding: '0 8px' }}>or demo Ghana credentials</span>
-                <div style={{ flex: 1, height: 1, backgroundColor: 'var(--pm-border)' }} />
-              </div>
-              {error && (
-                <div style={{
-                  background: 'var(--pm-error-light)',
-                  color: 'var(--pm-error)',
-                  border: '1px solid var(--pm-error)',
-                  padding: 'var(--pm-space-3) var(--pm-space-4)',
-                  borderRadius: 'var(--pm-radius-md)',
-                  fontSize: '0.875rem',
-                  marginBottom: 'var(--pm-space-4)',
-                }}>
-                  {error}
+        {/* Center: Login Form */}
+        <div className="flex flex-1 items-center justify-center py-6">
+          <div className="w-full max-w-md">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center p-8 text-sm text-[var(--pm-text-muted)]">
+                  Loading sign-in form...
                 </div>
-              )}
+              }
+            >
+              <LoginForm />
+            </Suspense>
+          </div>
+        </div>
 
-              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-4)' }}>
-                <div>
-                  <label className="pm-form-label">Ghana Mobile Phone Number</label>
-                  <div style={{ position: 'relative' }}>
-                    <Phone size={16} style={{
-                      position: 'absolute', left: 12, top: '50%',
-                      transform: 'translateY(-50%)', color: 'var(--pm-text-muted)',
-                    }} />
-                    <input
-                      type="tel"
-                      className="pm-input"
-                      style={{ paddingLeft: 38 }}
-                      placeholder="+233 24 412 3456"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)', marginTop: 4, display: 'block' }}>
-                    Enter registered Ghana phone with country code (+233)
-                  </span>
-                </div>
+        {/* Bottom Security / Trust Footer */}
+        <div className="pt-6 border-t border-[var(--pm-border-subtle)] flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--pm-text-muted)]">
+          <div className="flex items-center gap-2">
+            <Database className="size-3.5 text-[var(--pm-blue-600)]" />
+            <span>Postgres Multi-Tenant Isolation</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="size-3.5 text-emerald-600" />
+            <span>Ghana Act 843 Statutory Protection</span>
+          </div>
+        </div>
+      </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <label className="pm-form-label" style={{ marginBottom: 0 }}>Password</label>
-                    <a href="#" style={{ fontSize: '0.75rem', color: 'var(--pm-text-link)', textDecoration: 'none' }}>
-                      Forgot password?
-                    </a>
-                  </div>
-                  <div className="pm-password-wrapper">
-                    <Lock size={16} style={{
-                      position: 'absolute', left: 12, top: '50%',
-                      transform: 'translateY(-50%)', color: 'var(--pm-text-muted)',
-                    }} />
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      className="pm-input"
-                      style={{ paddingLeft: 38, paddingRight: 40 }}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="pm-password-toggle"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
+      {/* Right Column: Visual Cover Panel (shadcn login-02 feature) */}
+      <div className="relative hidden lg:flex flex-col justify-between overflow-hidden bg-[var(--pm-surface)] border-l border-[var(--pm-border)] p-12">
+        {/* Decorative Background Image */}
+        <div className="absolute inset-0 z-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/auth-splash-desktop.png"
+            alt="ProMove Commercial Fleet Operations"
+            className="h-full w-full object-cover opacity-35 dark:opacity-20 dark:brightness-[0.4] dark:grayscale"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--pm-surface)] via-transparent to-[var(--pm-surface)]/80" />
+        </div>
 
-                {/* TOTP 2FA Option */}
-                <div style={{ background: 'var(--pm-bg-subtle)', padding: '10px 12px', borderRadius: 'var(--pm-radius-md)', border: '1px solid var(--pm-border-subtle)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 500, color: 'var(--pm-text)' }}>
-                      Two-Factor Auth (TOTP)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setShowTotpInput(!showTotpInput)}
-                      style={{
-                        background: 'none', border: 'none', color: 'var(--pm-text-link)',
-                        fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontWeight: 600,
-                      }}
-                    >
-                      {showTotpInput ? 'Hide 2FA' : '+ Enter 6-digit code'}
-                    </button>
-                  </div>
-                  {showTotpInput && (
-                    <div style={{ marginTop: 8 }}>
-                      <input
-                        type="text"
-                        className="pm-input"
-                        placeholder="e.g. 849201"
-                        maxLength={6}
-                        value={totpCode}
-                        onChange={e => setTotpCode(e.target.value)}
-                        style={{ textAlign: 'center', letterSpacing: '0.25em', fontWeight: 700, fontSize: '1.125rem' }}
-                      />
-                      <span style={{ fontSize: '0.6875rem', color: 'var(--pm-text-muted)', display: 'block', marginTop: 4 }}>
-                        Authenticator app code (TOTP RFC 6238, no SMS delay)
-                      </span>
-                    </div>
-                  )}
-                </div>
+        {/* Top Badge Overlay */}
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 rounded-full bg-[var(--pm-surface)]/90 backdrop-blur-md px-3.5 py-1 text-xs font-semibold text-[var(--pm-text)] shadow-sm border border-[var(--pm-border)]">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Active Telematics & Corridors</span>
+          </div>
+          <span className="text-xs font-mono font-medium text-[var(--pm-text-muted)]">
+            CIRCLE • KASOA • TEMA • MADINA
+          </span>
+        </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <input type="checkbox" id="remember" defaultChecked style={{ cursor: 'pointer' }} />
-                  <label htmlFor="remember" style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)', cursor: 'pointer' }}>
-                    Keep me signed in on this device
-                  </label>
-                </div>
-
-                <button
-                  type="submit"
-                  className="pm-btn pm-btn-primary"
-                  style={{ width: '100%', padding: '12px', marginTop: 'var(--pm-space-1)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                  disabled={loading}
-                >
-                  {loading ? 'Authenticating...' : 'Sign in to Dashboard'}
-                  <ArrowRight size={16} />
-                </button>
-              </form>
-
-              {/* Demo Fast Login for Fleet Owner (Admin button restricted to /admin) */}
-              <div style={{ marginTop: 'var(--pm-space-5)', borderTop: '1px solid var(--pm-border)', paddingTop: 'var(--pm-space-3)' }}>
-                <div style={{ fontSize: '0.6875rem', color: 'var(--pm-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8, textAlign: 'center', fontWeight: 600 }}>
-                  Quick Demo Access
-                </div>
-                <button
-                  type="button"
-                  className="pm-btn pm-btn-secondary pm-btn-sm"
-                  style={{ fontSize: '0.8125rem', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px' }}
-                  onClick={() => handleQuickLogin('+233244123456')}
-                >
-                  <UserCheck size={15} style={{ color: 'var(--pm-blue-600)' }} /> Quick Demo: Sign in as Fleet Owner
-                </button>
-              </div>
-
-              {/* Driver App Link - Commented out for now per user instruction */}
-              {/*
-              <div style={{
-                marginTop: 'var(--pm-space-4)',
-                background: 'var(--pm-bg-subtle)',
-                padding: 'var(--pm-space-3) var(--pm-space-4)',
-                borderRadius: 'var(--pm-radius-md)',
-                textAlign: 'center',
-                fontSize: '0.8125rem',
-                border: '1px solid var(--pm-border-subtle)',
-              }}>
-                Driver on the road?{' '}
-                <Link href="/driver-app" style={{ fontWeight: 600, color: 'var(--pm-blue-600)' }}>
-                  Launch Driver PWA
-                </Link>
-              </div>
-              */}
+        {/* Center Quotation / Testimonial */}
+        <div className="relative z-10 my-auto max-w-lg space-y-4">
+          <div className="inline-flex size-10 items-center justify-center rounded-xl bg-[var(--pm-blue-600)] text-white shadow-md">
+            <ShieldCheck className="size-5" />
+          </div>
+          <blockquote className="text-xl font-medium leading-relaxed text-[var(--pm-text)]">
+            &ldquo;Managing driver daily cash deposits and maintenance across 18 trotros used to be chaotic. With ProMove, every trip and payment is verified in real-time.&rdquo;
+          </blockquote>
+          <div className="text-sm">
+            <div className="font-semibold text-[var(--pm-text)]">
+              Kofi Mensah Darko
             </div>
-
-            <div className="pm-login-footer">
-              Don&apos;t have an account?{' '}
-              <Link href="/register">Register your fleet</Link>
+            <div className="text-xs text-[var(--pm-text-muted)]">
+              Managing Director • Darko Transit Line (Accra - Kasoa Corridor)
             </div>
           </div>
-        </section>
-      </main>
+        </div>
+
+        {/* Bottom Feature Badges */}
+        <div className="relative z-10 grid grid-cols-3 gap-4 pt-6 border-t border-[var(--pm-border)]">
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--pm-text)]">
+              <MapPin className="size-3.5 text-[var(--pm-blue-600)]" />
+              <span>Live Gateway</span>
+            </div>
+            <p className="text-[0.7rem] text-[var(--pm-text-muted)]">
+              Traccar GPS integration with live speed radar.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--pm-text)]">
+              <Fuel className="size-3.5 text-emerald-600" />
+              <span>Exact Pesewas</span>
+            </div>
+            <p className="text-[0.7rem] text-[var(--pm-text-muted)]">
+              Financial precision eliminating calculation drift.
+            </p>
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-[var(--pm-text)]">
+              <ShieldCheck className="size-3.5 text-amber-600" />
+              <span>DVLA Expiry</span>
+            </div>
+            <p className="text-[0.7rem] text-[var(--pm-text-muted)]">
+              Automated roadworthy & insurance alerts.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
