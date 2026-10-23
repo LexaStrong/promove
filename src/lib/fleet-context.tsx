@@ -6,6 +6,7 @@ import {
   VehicleDocument, Incident, FuelLog, Trip, Notification, FleetStats,
 } from './types';
 import { usePathname } from 'next/navigation';
+import { useUser as useClerkUser } from '@clerk/nextjs';
 import { useAuth } from './auth-context';
 import {
   mockVehicles, mockDrivers, mockLedgerEntries, mockMaintenanceRecords,
@@ -77,8 +78,9 @@ function writeStorage<T>(key: string, value: T): void {
 
 export function FleetProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, org } = useAuth();
-  const userId = user?.id ?? null;
+  const { user: localUser, org } = useAuth();
+  const { user: clerkUser } = useClerkUser();
+  const userId = clerkUser?.id || localUser?.id || null;
   const keysRef = useRef<FleetKeyMap>(buildFleetKeys(userId));
   useEffect(() => {
     keysRef.current = buildFleetKeys(userId);

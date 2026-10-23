@@ -12,8 +12,12 @@ const isPublicRoute = createRouteMatcher([
   "/contact(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/signup(.*)",
+  "/register(.*)",
+  "/onboarding(.*)",
   "/admin(.*)", // Admin page renders its own dedicated HMAC cryptographic login
   "/api/admin(.*)", // Admin API routes are protected by HMAC session token, not Clerk user session
+  "/api/onboarding",
   "/api/gps/positions",
   "/api/gps/telemetry",
   "/api/gps/traccar-webhook",

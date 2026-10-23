@@ -9,8 +9,10 @@ import {
   Fuel, Gauge, Calendar, UserCheck, Banknote, Palette,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { useUser as useClerkUser } from '@clerk/nextjs';
 import { writeFleetWorkspace } from '@/lib/fleet-storage';
 import { ThemeToggle } from '@/components/theme-toggle';
+import type { Vehicle, Driver, VehicleType } from '@/lib/types';
 import {
   getCuratedMakes,
   getCuratedModels,
@@ -46,30 +48,86 @@ const VEHICLE_TYPE_CONFIG = {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user: localUser } = useAuth();
+  const { isLoaded: isClerkLoaded, isSignedIn: isClerkSignedIn, user: clerkUser } = useClerkUser();
 
-  // Step 1: User & Organisation Details (Clean, no prefilled dummy data)
-  const [contact, setContact] = useState(user?.phone || user?.email || '');
-  const [username, setUsername] = useState(user?.full_name || '');
+  const clerkContact = clerkUser?.primaryPhoneNumber?.phoneNumber || clerkUser?.primaryEmailAddress?.emailAddress || '';
+  const clerkName = clerkUser?.fullName || clerkUser?.firstName || '';
+  const localContact = localUser?.phone || localUser?.email || '';
+  const localName = localUser?.full_name || '';
+
+  const activeContact = clerkContact || localContact;
+  const activeName = clerkName || localName;
+  const activeUserId = clerkUser?.id || localUser?.id || null;
+
+  // Step 1: User & Organisation Details (Reactive prefill from Clerk with local auth fallback)
+  const [contact, setContact] = useState(activeContact);
+  const [username, setUsername] = useState(activeName);
   const [orgName, setOrgName] = useState('');
 
   // Step 2: Vehicles (Starts empty for a clean slate)
   const [vehicles, setVehicles] = useState<VehicleDraft[]>([]);
 
   useEffect(() => {
-    if (user) {
-      if (!contact && (user.phone || user.email)) {
-        setContact(user.phone || user.email || '');
-      }
-      if (!username && user.full_name) {
-        setUsername(user.full_name);
-      }
+    if (activeContact && !contact) {
+      setContact(activeContact);
     }
-  }, [user, contact, username]);
+    if (activeName && !username) {
+      setUsername(activeName);
+    }
+  }, [activeContact, activeName, contact, username]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // Quick-fill sample Ghanaian commercial fleet preset
+  const handleQuickFillPreset = () => {
+    if (!orgName) {
+      setOrgName(clerkName ? `${clerkName}'s Transit Fleet` : 'Accra Fast Transport Services');
+    }
+    if (!contact) {
+      setContact(activeContact || '+233 24 123 4567');
+    }
+    if (!username) {
+      setUsername(activeName || 'Kwame Mensah');
+    }
+    const sampleVehicles: VehicleDraft[] = [
+      {
+        id: 'v-preset-1',
+        plate_number: 'GN 4812-24',
+        vehicle_type: 'trotro',
+        make: 'Toyota',
+        model: 'Hiace',
+        year: 2023,
+        seats: 15,
+        fuel_type: 'diesel',
+        odometer_km: 42300,
+        colour: 'White',
+        assigned: true,
+        driver_name: 'Kwesi Appiah',
+        driver_phone: '+233 24 987 6543',
+        daily_target_cedis: 350,
+      },
+      {
+        id: 'v-preset-2',
+        plate_number: 'GS 7192-23',
+        vehicle_type: 'taxi',
+        make: 'Hyundai',
+        model: 'Elantra',
+        year: 2022,
+        seats: 4,
+        fuel_type: 'petrol',
+        odometer_km: 68100,
+        colour: 'Yellow / Ash',
+        assigned: true,
+        driver_name: 'Emmanuel Darko',
+        driver_phone: '+233 20 456 7890',
+        daily_target_cedis: 200,
+      },
+    ];
+    setVehicles(sampleVehicles);
+  };
 
   // Sync vehicle count input
   const handleVehicleCountChange = (count: number) => {
@@ -78,12 +136,13 @@ export default function OnboardingPage() {
 
     if (validCount > vehicles.length) {
       const added: VehicleDraft[] = [];
+      const timestamp = Date.now();
       for (let i = vehicles.length; i < validCount; i++) {
         const typeKeys: (keyof typeof VEHICLE_TYPE_CONFIG)[] = ['trotro', 'taxi', 'hauling', 'bus', 'delivery'];
         const chosenType = typeKeys[i % typeKeys.length];
         const cfg = VEHICLE_TYPE_CONFIG[chosenType];
         added.push({
-          id: `v-${Date.now()}-${i}`,
+          id: `v-${timestamp}-${i}`,
           plate_number: '',
           vehicle_type: chosenType,
           make: cfg.defaultMake,
@@ -105,7 +164,7 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleVehicleChange = (index: number, field: keyof VehicleDraft, value: any) => {
+  const handleVehicleChange = (index: number, field: keyof VehicleDraft, value: unknown) => {
     const updated = [...vehicles];
     if (field === 'vehicle_type') {
       const vType = value as keyof typeof VEHICLE_TYPE_CONFIG;
@@ -186,7 +245,10 @@ export default function OnboardingPage() {
       vehicles: [],
       createdAt: new Date().toISOString(),
     };
-    writeFleetWorkspace(user?.id, cleanPayload, []);
+    writeFleetWorkspace(activeUserId, cleanPayload, []);
+    if (activeUserId) {
+      writeFleetWorkspace(null, cleanPayload, []);
+    }
     router.push('/dashboard');
   };
 
@@ -244,14 +306,18 @@ export default function OnboardingPage() {
       });
 
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to initialize fleet organization.');
+      }
 
-      const createdDrivers: any[] = [];
-      const createdVehicles = validVehicles.map((v, i) => {
-        const vehId = `veh-${Date.now()}-${i + 1}`;
-        let currentDriver: any = undefined;
+      const timestamp = Date.now();
+      const createdDrivers: Driver[] = [];
+      const createdVehicles: Vehicle[] = validVehicles.map((v, i) => {
+        const vehId = `veh-${timestamp}-${i + 1}`;
+        let currentDriver: Driver | undefined = undefined;
 
         if (v.assigned && v.driver_name?.trim()) {
-          const drvId = `drv-${Date.now()}-${i + 1}`;
+          const drvId = `drv-${timestamp}-${i + 1}`;
           currentDriver = {
             id: drvId,
             org_id: 'org-user',
@@ -261,25 +327,35 @@ export default function OnboardingPage() {
             role_type: 'driver',
             licence_number_enc: null,
             licence_class: 'C',
-            licence_expiry: new Date(Date.now() + 365 * 24 * 3600 * 1000).toISOString().split('T')[0],
+            licence_expiry: new Date(timestamp + 365 * 24 * 3600 * 1000).toISOString().split('T')[0],
             status: 'active',
-            assigned_vehicle_id: vehId,
-            created_at: new Date().toISOString(),
+            emergency_contact: null,
+            archived_at: null,
           };
           createdDrivers.push(currentDriver);
         }
+
+        const vTypeMap: Record<VehicleDraft['vehicle_type'], VehicleType> = {
+          trotro: 'trotro',
+          taxi: 'taxi',
+          bus: 'bus',
+          hauling: 'truck',
+          delivery: 'pickup',
+        };
 
         return {
           id: vehId,
           org_id: 'org-user',
           plate_number: v.plate_number.toUpperCase().trim(),
-          vehicle_type: v.vehicle_type,
+          vehicle_type: vTypeMap[v.vehicle_type] || 'trotro',
           make: v.make || 'Toyota',
           model: v.model || 'Hiace',
           year: v.year || 2023,
           seats: v.seats || 15,
           fuel_type: v.fuel_type || 'diesel',
           colour: v.colour || 'White',
+          vin: null,
+          gps_device_id: null,
           odometer_km: v.odometer_km || 0,
           daily_target_pesewas: (v.daily_target_cedis || 350) * 100,
           status: currentDriver ? ('active' as const) : ('idle' as const),
@@ -297,14 +373,20 @@ export default function OnboardingPage() {
         createdAt: new Date().toISOString(),
       };
 
-      writeFleetWorkspace(user?.id, payload, createdVehicles, createdDrivers);
+      // Store in per-user storage (Clerk active user or local user fallback)
+      writeFleetWorkspace(activeUserId, payload, createdVehicles, createdDrivers);
+      // Also store in fallback un-scoped key so workspace instantly hydrates on dashboard
+      if (activeUserId) {
+        writeFleetWorkspace(null, payload, createdVehicles, createdDrivers);
+      }
 
       setSuccess(true);
       setTimeout(() => {
         router.push('/dashboard');
       }, 1000);
-    } catch (err: any) {
-      setError(err?.message || 'An error occurred while saving onboarding details.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'An error occurred while saving onboarding details.';
+      setError(msg);
       setLoading(false);
     }
   };
@@ -351,6 +433,103 @@ export default function OnboardingPage() {
               Specify your organization details, operator username, and vehicles to immediately unlock telematics, live tracking, and digital ledger control.
             </p>
           </div>
+
+          {/* Clerk SSO Authentication & Fallback Banner */}
+          {isClerkLoaded && isClerkSignedIn && clerkUser ? (
+            <div style={{
+              background: 'var(--pm-blue-50)',
+              border: '1px solid var(--pm-blue-200)',
+              borderRadius: 'var(--pm-radius-md)',
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <ShieldCheck size={20} style={{ color: 'var(--pm-blue-700)', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--pm-blue-900)' }}>
+                    Clerk SSO Connected
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pm-blue-700)' }}>
+                    Onboarding as <strong>{clerkUser.fullName || clerkUser.primaryEmailAddress?.emailAddress || 'User'}</strong> ({clerkUser.primaryEmailAddress?.emailAddress || clerkUser.id})
+                  </div>
+                </div>
+              </div>
+              <span style={{ fontSize: '0.6875rem', fontWeight: 700, background: 'var(--pm-blue-100)', color: 'var(--pm-blue-800)', padding: '3px 8px', borderRadius: 4 }}>
+                CLERK VERIFIED
+              </span>
+            </div>
+          ) : (
+            <div style={{
+              background: 'var(--pm-bg-subtle)',
+              border: '1px solid var(--pm-border-subtle)',
+              borderRadius: 'var(--pm-radius-md)',
+              padding: '12px 16px',
+              marginBottom: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <UserCheck size={18} style={{ color: 'var(--pm-text-muted)', flexShrink: 0 }} />
+                <div>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--pm-text)' }}>
+                    Local Workspace Setup (Clerk Fallback Active)
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>
+                    Setting up as a local operator. You can link your Clerk SSO account anytime.
+                  </div>
+                </div>
+              </div>
+              <Link
+                href="/signup"
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  color: 'var(--pm-blue-600)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                Sign in with Clerk SSO &rarr;
+              </Link>
+            </div>
+          )}
+
+          {/* Quick Starter Preset Action */}
+          {vehicles.length === 0 && (
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'linear-gradient(135deg, rgba(11, 79, 108, 0.05) 0%, rgba(34, 197, 94, 0.05) 100%)',
+              border: '1px dashed var(--pm-blue-200)',
+              borderRadius: 'var(--pm-radius-md)',
+              padding: '10px 14px',
+              marginBottom: 24,
+            }}>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--pm-text-secondary)' }}>
+                Want to quickly test onboarding with sample vehicles?
+              </span>
+              <button
+                type="button"
+                onClick={handleQuickFillPreset}
+                className="pm-btn pm-btn-secondary pm-btn-sm"
+                style={{ fontSize: '0.75rem', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <Sparkles size={14} style={{ color: 'var(--pm-blue-600)' }} />
+                ⚡ Auto-fill 2 sample vehicles
+              </button>
+            </div>
+          )}
 
           {error && (
             <div style={{
