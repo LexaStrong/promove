@@ -285,3 +285,5 @@ For authorized administration access via `/admin`:
 ## License
 
 Proprietary • Copyright © 2026 ProMove Ghana. All rights reserved.
+#   p r o m o v e  
+ 
