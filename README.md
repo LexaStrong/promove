@@ -286,4 +286,5 @@ For authorized administration access via `/admin`:
 
 Proprietary • Copyright © 2026 ProMove Ghana. All rights reserved.
 #   p r o m o v e  
+ #   p r o m o v e  
  
