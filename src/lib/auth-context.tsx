@@ -177,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     if (isSignedIn) {
-      clerk.signOut();
+      clerk.signOut({ redirectUrl: '/login' });
     }
     setLocalDemoState(prev => ({ ...prev, user: null, org: null, isAuthenticated: false }));
   }, [isSignedIn, clerk]);

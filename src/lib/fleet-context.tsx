@@ -492,8 +492,10 @@ export function FleetProvider({ children }: { children: ReactNode }) {
   const stats = useMemo<FleetStats>(() => {
     if (isDemo) return mockFleetStats;
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
     const thisMonthStr = todayStr.slice(0, 7);
+    const currentMs = now.getTime();
 
     const validEntries = userLedger.filter(e => e.status !== 'voided');
 
@@ -513,7 +515,7 @@ export function FleetProvider({ children }: { children: ReactNode }) {
       .filter(e => e.entry_type === 'expense' && e.entry_date.startsWith(thisMonthStr))
       .reduce((sum, e) => sum + e.amount_pesewas, 0);
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    const sevenDaysAgo = new Date(currentMs - 7 * 86400000).toISOString().slice(0, 10);
     const weekIncome = validEntries
       .filter(e => e.entry_type === 'income' && e.entry_date >= sevenDaysAgo)
       .reduce((sum, e) => sum + e.amount_pesewas, 0);
@@ -537,7 +539,7 @@ export function FleetProvider({ children }: { children: ReactNode }) {
       active_drivers: userDrivers.filter(d => d.status === 'active').length,
       total_drivers: userDrivers.length,
       docs_expiring_soon: userDocuments.filter(d => (d.days_until_expiry ?? 999) <= 30).length,
-      maintenance_overdue: userSchedules.filter(s => s.next_due_on && new Date(s.next_due_on).getTime() < Date.now()).length,
+      maintenance_overdue: userSchedules.filter(s => s.next_due_on && new Date(s.next_due_on).getTime() < currentMs).length,
       open_incidents: userIncidents.filter(i => i.status !== 'resolved').length,
     };
   }, [isDemo, userVehicles, userDrivers, userLedger, userDocuments, userSchedules, userIncidents]);
