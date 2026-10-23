@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/splash(.*)",
   "/login(.*)",
   "/privacy(.*)",
+  "/contact(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/admin(.*)", // Admin page renders its own dedicated HMAC cryptographic login
@@ -32,7 +33,7 @@ const isAdminApiRoute = createRouteMatcher([
 
 let clerkHandler: any = null;
 try {
-  clerkHandler = clerkMiddleware(async (auth, req) => {
+  clerkHandler = clerkMiddleware(async (auth: any, req: any) => {
     const { pathname } = req.nextUrl;
 
     // ── 1. Admin API Route "Deny by Default" Enforcement ──

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, ChevronDown, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, ChevronDown, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useAuth as useFleetAuth } from '@/lib/auth-context';
 import { useUser as useClerkUser } from '@clerk/nextjs';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -26,18 +26,19 @@ export default function MobileSplashScreen({
     return Boolean(fleetAuth?.isAuthenticated || (isClerkLoaded && isClerkSignedIn));
   }, [fleetAuth?.isAuthenticated, isClerkLoaded, isClerkSignedIn]);
 
+  const fleetUser = fleetAuth?.user;
   const displayName = useMemo(() => {
     if (clerkUser?.firstName) return clerkUser.firstName;
     if (clerkUser?.fullName) return clerkUser.fullName;
-    if (fleetAuth?.user?.full_name) return fleetAuth.user.full_name;
+    if (fleetUser?.full_name) return fleetUser.full_name;
     return 'Fleet Operator';
-  }, [clerkUser, fleetAuth?.user]);
+  }, [clerkUser, fleetUser]);
 
   const handleContinue = useCallback(() => {
     if (isSignedIn) {
       router.push('/dashboard');
     } else {
-      router.push('/login');
+      router.push('/sign-in');
     }
   }, [isSignedIn, router]);
 

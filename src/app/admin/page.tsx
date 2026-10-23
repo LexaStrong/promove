@@ -2,10 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
 import {
-  Search, X, LogOut, Check, Plus, Settings, Radio,
-  MapPin, BatteryCharging, AlertTriangle, Eye
+  Search, X, LogOut, Plus, Settings, Eye
 } from 'lucide-react';
 import type { VehicleMarkerData } from '@/components/map/tracking-map';
 import type { AdminUserData } from '@/app/api/admin/users/route';

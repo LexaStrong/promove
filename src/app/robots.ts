@@ -29,7 +29,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/privacy', '/llms.txt', '/llms-full.txt', '/manifest.json', '/favicon.ico', '/icon.png', '/og-image.png'],
+        allow: ['/', '/privacy', '/contact', '/llms.txt', '/llms-full.txt', '/manifest.json', '/favicon.ico', '/icon.png', '/og-image.png'],
         disallow: privateRoutes,
       },
       // Explicitly allow leading AI & Answer Engine bots for AEO and GEO visibility
@@ -45,7 +45,7 @@ export default function robots(): MetadataRoute.Robots {
           'cohere-ai',
           'OAI-SearchBot',
         ],
-        allow: ['/', '/privacy', '/llms.txt', '/llms-full.txt'],
+        allow: ['/', '/privacy', '/contact', '/llms.txt', '/llms-full.txt'],
         disallow: privateRoutes,
       },
     ],

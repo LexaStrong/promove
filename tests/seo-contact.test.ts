@@ -7,7 +7,7 @@ import {
   siteFaqs,
   getRootStructuredData,
   getLandingPageFaqSchema,
-} from '../src/lib/site.ts';
+} from '../src/lib/site';
 
 test('Contact & Socials: Validates required contact details and social media channels', () => {
   assert.equal(siteConfig.supportEmail, 'support@promovegh.com');
@@ -68,17 +68,18 @@ test('Indexing & Robots: File allows public indexing and AI search bots while pr
   assert.ok(content.includes('GPTBot'));
   assert.ok(content.includes('PerplexityBot'));
   assert.ok(content.includes('ClaudeBot'));
-  assert.ok(content.includes("allow: ['/', '/privacy', '/llms.txt'"));
+  assert.ok(content.includes("allow: ['/', '/privacy', '/contact'"));
   assert.ok(content.includes("sitemap: new URL('/sitemap.xml', siteUrl).toString()"));
 });
 
-test('Sitemap: Contains home, privacy, and llms.txt endpoints', () => {
+test('Sitemap: Contains home, privacy, contact, and llms.txt endpoints', () => {
   const sitemapPath = path.join(process.cwd(), 'src', 'app', 'sitemap.ts');
   assert.ok(fs.existsSync(sitemapPath));
   const content = fs.readFileSync(sitemapPath, 'utf8');
 
   assert.ok(content.includes("url: new URL('/', siteUrl).toString()"));
   assert.ok(content.includes("url: new URL('/privacy', siteUrl).toString()"));
+  assert.ok(content.includes("url: new URL('/contact', siteUrl).toString()"));
   assert.ok(content.includes("url: new URL('/llms.txt', siteUrl).toString()"));
   assert.ok(content.includes("changeFrequency: 'daily'"));
 });
@@ -98,4 +99,17 @@ test('GEO: llms.txt and llms-full.txt files exist with required contact and enti
   assert.ok(llmsContent.includes('https://instagram.com/promovegh'));
   assert.ok(llmsContent.includes('https://facebook.com/promovegh'));
   assert.ok(llmsContent.includes('https://x.com/promovegh'));
+});
+
+test('Contact Page & Menu: Validates /contact page and layout existence with support channels', () => {
+  const contactPagePath = path.join(process.cwd(), 'src', 'app', 'contact', 'page.tsx');
+  const contactLayoutPath = path.join(process.cwd(), 'src', 'app', 'contact', 'layout.tsx');
+  const appShellPath = path.join(process.cwd(), 'src', 'components', 'app-shell.tsx');
+
+  assert.ok(fs.existsSync(contactPagePath), 'src/app/contact/page.tsx must exist');
+  assert.ok(fs.existsSync(contactLayoutPath), 'src/app/contact/layout.tsx must exist');
+
+  const shellContent = fs.readFileSync(appShellPath, 'utf8');
+  assert.ok(shellContent.includes("href: '/contact'"), 'AppShell menu must include /contact');
+  assert.ok(shellContent.includes("label: 'Contact & Support'"), 'AppShell menu must have Contact & Support label');
 });

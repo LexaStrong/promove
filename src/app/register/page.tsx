@@ -109,6 +109,31 @@ function RegisterForm() {
             </header>
 
             <div className="pm-card pm-register-card">
+              {!isAdminSignup && (
+                <Link
+                  href="/signup"
+                  className="pm-btn pm-btn-secondary"
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    marginBottom: 'var(--pm-space-4)',
+                    padding: '10px',
+                    fontWeight: 600,
+                    fontSize: '0.875rem',
+                    textDecoration: 'none',
+                    border: '1px solid var(--pm-blue-200)',
+                    backgroundColor: 'var(--pm-blue-50)',
+                    color: 'var(--pm-blue-700)',
+                  }}
+                >
+                  <ShieldCheck size={16} />
+                  <span>Register with Google / Clerk SSO (Quick Setup)</span>
+                  <ArrowRight size={14} />
+                </Link>
+              )}
               {error && (
                 <div style={{
                   background: 'var(--pm-error-light)',
@@ -378,7 +403,7 @@ function RegisterForm() {
               ) : (
                 <>
                   Already registered?{' '}
-                  <Link href="/login">Sign in</Link>
+                  <Link href="/sign-in">Sign in</Link>
                 </>
               )}
             </div>

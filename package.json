@@ -7,11 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --experimental-strip-types --test tests/tenancy.test.ts tests/money-flow.test.ts tests/offline-sync.test.ts tests/load-report.test.ts tests/sandbox.test.ts tests/gps-tracking.test.ts tests/admin-security.test.ts tests/theme-session.test.ts tests/seo-contact.test.ts",
+    "test": "tsx --test tests/tenancy.test.ts tests/money-flow.test.ts tests/offline-sync.test.ts tests/load-report.test.ts tests/sandbox.test.ts tests/gps-tracking.test.ts tests/admin-security.test.ts tests/theme-session.test.ts tests/seo-contact.test.ts",
     "security:sast": "tsc --noEmit",
     "security:sca": "npm audit --omit=dev",
-    "security:dast": "node --experimental-strip-types --test tests/admin-security.test.ts",
-    "security:check": "npm run security:sast && npm run security:dast"
+    "security:dast": "tsx --test tests/admin-security.test.ts",
+    "security:check": "npm run security:sast && npm run security:dast",
+    "db:migrate": "node scripts/migrate.mjs",
+    "traccar:setup": "node scripts/traccar.mjs setup",
+    "traccar:start": "node scripts/traccar.mjs start",
+    "traccar:test": "node scripts/traccar.mjs test"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
@@ -39,6 +43,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.8",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   },
   "overrides": {

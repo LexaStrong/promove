@@ -74,6 +74,42 @@ export default function LoginPage() {
             </header>
 
             <div className="pm-card pm-login-card">
+              <Link
+                href="/sign-in"
+                className="pm-btn pm-btn-secondary"
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  marginBottom: 'var(--pm-space-4)',
+                  padding: '10px',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  textDecoration: 'none',
+                  border: '1px solid var(--pm-blue-200)',
+                  backgroundColor: 'var(--pm-blue-50)',
+                  color: 'var(--pm-blue-700)',
+                }}
+              >
+                <ShieldCheck size={16} />
+                <span>Sign in with Clerk SSO / Google</span>
+                <ArrowRight size={14} />
+              </Link>
+
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                textAlign: 'center',
+                margin: 'var(--pm-space-2) 0 var(--pm-space-4)',
+                color: 'var(--pm-text-muted)',
+                fontSize: '0.75rem',
+              }}>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'var(--pm-border)' }} />
+                <span style={{ padding: '0 8px' }}>or demo Ghana credentials</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'var(--pm-border)' }} />
+              </div>
               {error && (
                 <div style={{
                   background: 'var(--pm-error-light)',

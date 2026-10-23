@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import {
-  Navigation, Radio, Battery, AlertTriangle, ShieldCheck,
-  CheckCircle2, Compass, MapPin, Gauge, Pause, Play, ArrowLeft, RefreshCw, Smartphone
+  Battery, AlertTriangle, Compass, MapPin, Pause, Play, ArrowLeft,
 } from 'lucide-react';
 import { useFleet } from '@/lib/fleet-context';
 import { ghanaCorridorGeofences } from '@/lib/gps/telemetry-hub';
@@ -20,7 +19,7 @@ interface OfflinePing {
 }
 
 export default function DriverAppPage() {
-  const { vehicles, drivers, isDemo } = useFleet();
+  const { vehicles } = useFleet();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
@@ -36,7 +35,9 @@ export default function DriverAppPage() {
 
   const watchIdRef = useRef<number | null>(null);
   const offlineQueueRef = useRef<OfflinePing[]>([]);
-  offlineQueueRef.current = offlineQueue;
+  useEffect(() => {
+    offlineQueueRef.current = offlineQueue;
+  }, [offlineQueue]);
 
   // Auto-select first available vehicle
   useEffect(() => {

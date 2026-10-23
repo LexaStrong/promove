@@ -80,7 +80,9 @@ export function FleetProvider({ children }: { children: ReactNode }) {
   const { user, org } = useAuth();
   const userId = user?.id ?? null;
   const keysRef = useRef<FleetKeyMap>(buildFleetKeys(userId));
-  keysRef.current = buildFleetKeys(userId);
+  useEffect(() => {
+    keysRef.current = buildFleetKeys(userId);
+  }, [userId]);
   const [mounted, setMounted] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
 

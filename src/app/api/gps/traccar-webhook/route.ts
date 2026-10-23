@@ -43,16 +43,25 @@ export async function POST(req: Request) {
 
     // 2. Parameterized lookup for vehicle in Neon Lakebase DB
     let plateNumber = device.name ? sanitizePlainText(device.name, 20) : undefined;
-    let vehicleId = undefined;
+    let vehicleId: string | undefined = undefined;
+    let orgId: string | undefined = undefined;
 
     try {
       const rows = await query(
-        `SELECT id, plate_number, make, model FROM vehicles WHERE gps_tracker_imei = $1 LIMIT 1`,
+        `SELECT id, org_id, plate_number, make, model FROM vehicles WHERE gps_tracker_imei = $1 LIMIT 1`,
         [imei]
       );
       if (rows && rows.length > 0) {
         vehicleId = rows[0].id;
+        orgId = rows[0].org_id;
         plateNumber = rows[0].plate_number;
+
+        // Persist GPS trail into partitioned positions table
+        await query(
+          `INSERT INTO positions (org_id, vehicle_id, latitude, longitude, speed_kmh, course_heading, ignition, battery_percentage, recorded_at)
+           VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9)`,
+          [orgId, vehicleId, latitude, longitude, speedKmh, courseHeading, ignition, batteryPercentage, position.fixTime || new Date().toISOString()]
+        ).catch(() => {});
       }
     } catch {
       // Fallback gracefully to in-memory map

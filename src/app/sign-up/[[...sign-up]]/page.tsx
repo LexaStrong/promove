@@ -1,16 +1,12 @@
-import { SignUp } from "@clerk/nextjs";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { auth } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import SignupPage from '@/app/signup/page';
 
-export default async function SignUpPage() {
+export default async function ClerkSignUpPage() {
   const { userId } = await auth();
   if (userId) {
-    redirect("/dashboard");
+    redirect('/dashboard');
   }
 
-  return (
-    <div className="flex min-h-screen items-center justify-center">
-      <SignUp forceRedirectUrl="/onboarding" fallbackRedirectUrl="/onboarding" />
-    </div>
-  );
+  return <SignupPage />;
 }

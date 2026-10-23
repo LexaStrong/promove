@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { paymentProvider } from '@/lib/providers/payment-provider';
+import { query } from '@/lib/db';
 
 // Storage for dispute investigation
 const rawCallbackLogs: Array<{
@@ -56,6 +57,25 @@ export async function POST(request: NextRequest) {
       };
 
       const ledgerEntry = paymentProvider.createSettlementLedgerEntry(syntheticPayment);
+
+      // Persist to Neon Postgres payments & ledger tables
+      try {
+        await query(
+          `INSERT INTO payments (amount_pesewas, customer_msisdn, client_reference, status, hubtel_transaction_id, raw_callback)
+           VALUES ($1, $2, $3, 'paid', $4, $5)
+           ON CONFLICT (client_reference) DO UPDATE
+           SET status = 'paid', hubtel_transaction_id = EXCLUDED.hubtel_transaction_id, updated_at = NOW()`,
+          [syntheticPayment.amountPesewas, syntheticPayment.customerMsisdn, syntheticPayment.clientReference, syntheticPayment.hubtelTransactionId || null, JSON.stringify(rawBody)]
+        ).catch(() => {});
+
+        await query(
+          `INSERT INTO ledger (entry_date, entry_type, category, amount_pesewas, payment_method, reference, status, idempotency_key, notes)
+           VALUES ($1, 'income', 'daily_sales', $2, 'momo_hubtel', $3, 'confirmed', $4, $5)`,
+          [new Date().toISOString().slice(0, 10), syntheticPayment.amountPesewas, syntheticPayment.clientReference, `momo_settlement_${syntheticPayment.clientReference}`, `Automated Hubtel MoMo collection. Ref: ${syntheticPayment.clientReference}`]
+        ).catch(() => {});
+      } catch {
+        // Fallback gracefully
+      }
 
       return NextResponse.json({
         success: true,

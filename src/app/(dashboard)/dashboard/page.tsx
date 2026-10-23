@@ -6,7 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import {
   Car, Users, TrendingUp, TrendingDown, AlertTriangle,
   FileText, Wrench, ArrowUpRight, ArrowDownRight,
-  CheckCircle2, Sparkles, Plus, ExternalLink, HelpCircle,
+  CheckCircle2, Sparkles, Plus,
 } from 'lucide-react';
 import { formatPesewas } from '@/lib/types';
 import { useFleet } from '@/lib/fleet-context';
@@ -18,7 +18,7 @@ function DashboardContent() {
     setClientMounted(true);
   }, []);
 
-  const { org, user } = useAuth();
+  const { org } = useAuth();
   const searchParams = useSearchParams();
   const isDemo = searchParams.get('demo') === 'true';
 

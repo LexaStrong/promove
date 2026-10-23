@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Car, Users, BookOpen, Fuel,
   Wrench, FileText, AlertTriangle, Map, BarChart3,
   Settings, Bell, Menu, X, Search, LogOut, ChevronDown,
-  ShieldAlert, Smartphone, Navigation, Sparkles, Headphones,
+  ShieldAlert, Smartphone, Navigation, Sparkles, Headphones, Radio,
 } from 'lucide-react';
 import { siteConfig } from '@/lib/site';
 import { useAuth } from '@/lib/auth-context';
@@ -45,6 +45,7 @@ const navSections: NavSectionConfig[] = [
        */
       { href: '/trips', label: 'Trips', icon: Map, ownerMobileAllowed: false, adminAllowed: true },
       { href: '/live-map', label: 'Live GPS Map', icon: Navigation, ownerMobileAllowed: true, adminAllowed: true },
+      { href: '/telematics', label: 'GPS Gateway (Traccar)', icon: Radio, ownerMobileAllowed: false, adminAllowed: true },
     ],
   },
   {
@@ -67,6 +68,12 @@ const navSections: NavSectionConfig[] = [
     items: [
       { href: '/reports', label: 'Reports', icon: BarChart3, ownerMobileAllowed: true, adminAllowed: true },
       { href: '/intelligence', label: 'Fleet Intelligence', icon: Sparkles, ownerMobileAllowed: false, adminAllowed: true },
+    ],
+  },
+  {
+    title: 'Support',
+    items: [
+      { href: '/contact', label: 'Contact & Support', icon: Headphones, ownerMobileAllowed: true, adminAllowed: true },
     ],
   },
 ];
@@ -146,6 +153,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="pm-sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <Link
+            href="/contact"
+            className={`pm-sidebar-link ${pathname === '/contact' ? 'active' : ''}`}
+            onClick={() => setSidebarOpen(false)}
+          >
+            <Headphones size={18} />
+            Contact & Support
+          </Link>
           <Link
             href="/privacy"
             className={`pm-sidebar-link ${pathname === '/privacy' ? 'active' : ''}`}

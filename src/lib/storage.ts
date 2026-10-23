@@ -40,12 +40,22 @@ export class NeonObjectStorageProvider implements StorageProvider {
   constructor() {
     this.endpoint =
       process.env.NEON_STORAGE_ENDPOINT ||
+      process.env.AWS_ENDPOINT_URL_S3 ||
       'https://br-old-moon-b4kw1lhy.storage.c-6.us-east-2.aws.neon.tech';
     this.defaultBucket = process.env.NEON_STORAGE_BUCKET || 'documents';
 
-    const accessKeyId = process.env.NEON_STORAGE_ACCESS_KEY_ID || '';
-    const secretAccessKey = process.env.NEON_STORAGE_SECRET_ACCESS_KEY || '';
-    const region = process.env.NEON_STORAGE_REGION || 'us-east-2';
+    const accessKeyId =
+      process.env.NEON_STORAGE_ACCESS_KEY_ID ||
+      process.env.AWS_ACCESS_KEY_ID ||
+      '';
+    const secretAccessKey =
+      process.env.NEON_STORAGE_SECRET_ACCESS_KEY ||
+      process.env.AWS_SECRET_ACCESS_KEY ||
+      '';
+    const region =
+      process.env.NEON_STORAGE_REGION ||
+      process.env.AWS_REGION ||
+      'us-east-2';
 
     this.s3Client = new S3Client({
       endpoint: this.endpoint,

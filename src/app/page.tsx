@@ -3,9 +3,8 @@ import type { Metadata } from 'next';
 import {
   Car, BookOpen, Wrench, FileText,
   BarChart3, Shield, Wifi, ArrowRight,
-  Phone, Mail, MessageSquare, ExternalLink,
 } from 'lucide-react';
-import { SignInButton, SignUpButton, Show, UserButton } from '@clerk/nextjs';
+import { Show, UserButton } from '@clerk/nextjs';
 import { siteUrl, siteConfig, getLandingPageFaqSchema } from '@/lib/site';
 import MobileSplashScreen from '@/components/mobile-splash-screen';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -109,20 +108,20 @@ export default function LandingPage() {
             <a href="#faq" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>
               FAQ
             </a>
-            <a href="#contact" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>
+            <Link href="/contact" style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>
               Contact & Support
-            </a>
+            </Link>
           </div>
 
           <div className="pm-landing-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <ThemeToggle />
             <Show when="signed-out">
-              <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-                <button type="button" className="pm-btn pm-btn-ghost">Sign in</button>
-              </SignInButton>
-              <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
-                <button type="button" className="pm-btn pm-btn-primary">Get started</button>
-              </SignUpButton>
+              <Link href="/sign-in" className="pm-btn pm-btn-ghost">
+                Sign in
+              </Link>
+              <Link href="/sign-up" className="pm-btn pm-btn-primary">
+                Get started
+              </Link>
             </Show>
             <Show when="signed-in">
               <Link href="/dashboard" className="pm-btn pm-btn-secondary" style={{ marginRight: 8 }}>
@@ -148,12 +147,10 @@ export default function LandingPage() {
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 'var(--pm-space-6)' }}>
             <Show when="signed-out">
-              <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
-                <button type="button" className="pm-btn pm-btn-primary pm-btn-lg">
-                  Start managing your fleet
-                  <ArrowRight size={18} />
-                </button>
-              </SignUpButton>
+              <Link href="/sign-up" className="pm-btn pm-btn-primary pm-btn-lg">
+                Start managing your fleet
+                <ArrowRight size={18} />
+              </Link>
             </Show>
             <Show when="signed-in">
               <Link href="/dashboard" className="pm-btn pm-btn-primary pm-btn-lg">
@@ -325,16 +322,18 @@ export default function LandingPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <Show when="signed-out">
-              <SignUpButton mode="modal" forceRedirectUrl="/onboarding">
-                <button type="button" className="pm-btn pm-btn-lg" style={{
+              <Link
+                href="/sign-up"
+                className="pm-btn pm-btn-lg"
+                style={{
                   background: '#FFFFFF',
                   color: 'var(--pm-blue-700)',
                   fontWeight: 600,
-                }}>
-                  Create your account
-                  <ArrowRight size={18} />
-                </button>
-              </SignUpButton>
+                }}
+              >
+                Create your account
+                <ArrowRight size={18} />
+              </Link>
             </Show>
             <Show when="signed-in">
               <Link href="/dashboard" className="pm-btn pm-btn-lg" style={{
@@ -414,6 +413,7 @@ export default function LandingPage() {
                   <li><a href="#features" style={{ color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>Daily Ledger (Pesewas)</a></li>
                   <li><a href="#features" style={{ color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>Maintenance Scheduling</a></li>
                   <li><a href="#features" style={{ color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>DVLA Document Reminders</a></li>
+                  <li><Link href="/contact" style={{ color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>Contact & Support Desk</Link></li>
                   <li><Link href="/privacy" style={{ color: 'var(--pm-text-secondary)', textDecoration: 'none' }}>Data Protection (Act 843)</Link></li>
                 </ul>
               </div>

@@ -1,0 +1,73 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!DOCTYPE properties SYSTEM 'http://java.sun.com/dtd/properties.dtd'>
+<properties>
+
+    <!-- ─────────────────────────────────────────────────────────────
+         ProMove Ghana Fleet OS - Dedicated Traccar Configuration
+         Coordinates with ProMove Live Telemetry Webhook & Neon Lakebase
+         ───────────────────────────────────────────────────────────── -->
+
+    <!-- Web Interface Port & Server Address -->
+    <entry key='web.port'>8082</entry>
+    <entry key='web.address'>0.0.0.0</entry>
+    <entry key='web.path'>./web</entry>
+    <entry key='web.cors'>*</entry>
+
+    <!-- Real-time Position Forwarding to ProMove Next.js Webhook -->
+    <entry key='forward.enable'>true</entry>
+    <entry key='forward.type'>json</entry>
+    <entry key='forward.url'>http://localhost:3000/api/gps/traccar-webhook</entry>
+    <entry key='forward.header'>Content-Type: application/json</entry>
+
+    <!-- Real-time Event Forwarding (Geofence alarms, overspeed, SOS) -->
+    <entry key='event.forward.enable'>true</entry>
+    <entry key='event.forward.type'>json</entry>
+    <entry key='event.forward.url'>http://localhost:3000/api/gps/traccar-webhook</entry>
+
+    <!-- Database Configuration:
+         By default uses local high-speed embedded H2 database for dev/testing.
+         To point directly to Neon Lakebase Postgres in production, uncomment the PostgreSQL block below.
+    -->
+    <entry key='database.driver'>org.h2.Driver</entry>
+    <entry key='database.url'>jdbc:h2:./data/traccar;DB_CLOSE_DELAY=-1;NON_KEYWORDS=KEY,VALUE</entry>
+    <entry key='database.user'>sa</entry>
+    <entry key='database.password'></entry>
+
+    <!-- 
+    PostgreSQL Production Database Configuration (Neon Lakebase):
+    <entry key='database.driver'>org.postgresql.Driver</entry>
+    <entry key='database.url'>jdbc:postgresql://ep-still-mountain-b43zkaju-pooler.c-6.us-east-2.aws.neon.tech/neondb?sslmode=require</entry>
+    <entry key='database.user'>neondb_owner</entry>
+    <entry key='database.password'>YOUR_NEON_PASSWORD</entry>
+    -->
+
+    <!-- Common GPS Tracker Hardware Ports (Ghana Commercial Fleets) -->
+    <!-- Concox / Jimi IoT / GT06 / WeTrack (Trotros & Taxis) -->
+    <entry key='gt06.port'>5013</entry>
+    
+    <!-- Teltonika FMC130 / FMB920 (Commercial Buses & Hauling Trucks) -->
+    <entry key='teltonika.port'>5027</entry>
+
+    <!-- Coban / TK103 / GPS103 -->
+    <entry key='tk103.port'>5001</entry>
+
+    <!-- OsmAnd / Traccar Client (Smartphones / Driver Android App) -->
+    <entry key='osmand.port'>5055</entry>
+
+    <!-- Sinotrack / H02 protocol -->
+    <entry key='h02.port'>5014</entry>
+
+    <!-- Queclink GL300 / GV300 -->
+    <entry key='queclink.port'>5004</entry>
+
+    <!-- Server Logger -->
+    <entry key='logger.level'>info</entry>
+    <entry key='logger.file'>./logs/tracker-server.log</entry>
+
+    <!-- Geocoder & Over-speed Limits -->
+    <entry key='speedLimit'>120</entry>
+    <entry key='filter.enable'>true</entry>
+    <entry key='filter.future'>86400</entry>
+    <entry key='filter.duplicate'>true</entry>
+
+</properties>

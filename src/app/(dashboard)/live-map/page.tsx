@@ -25,7 +25,7 @@ import {
   Route,
   ChevronUp,
 } from 'lucide-react';
-import { GpsPosition, VehicleGpsStatus, VehicleCondition, GpsAlert } from '@/lib/gps/traccar-adapter';
+import { GpsPosition, VehicleCondition, GpsAlert } from '@/lib/gps/traccar-adapter';
 import { fleetPositions } from '@/lib/gps/fleet-positions';
 import { mockDrivers } from '@/lib/mock-data';
 import { useAuth } from '@/lib/auth-context';
@@ -123,12 +123,14 @@ export default function LiveMapPage() {
   const { isDemo, orgName, drivers: fleetDrivers, vehicles: ownedVehicles } = useFleet();
   // Identifiers of the signed-in user's own vehicles; live telemetry is limited to these outside demo mode
   const ownedIdsRef = useRef<{ isDemo: boolean; ids: Set<string> }>({ isDemo, ids: new Set() });
-  ownedIdsRef.current = {
-    isDemo,
-    ids: new Set(
-      ownedVehicles.flatMap(v => [v.id, v.plate_number, v.gps_device_id].filter((x): x is string => Boolean(x)))
-    ),
-  };
+  useEffect(() => {
+    ownedIdsRef.current = {
+      isDemo,
+      ids: new Set(
+        ownedVehicles.flatMap(v => [v.id, v.plate_number, v.gps_device_id].filter((x): x is string => Boolean(x)))
+      ),
+    };
+  }, [isDemo, ownedVehicles]);
   const isOwner = role === 'owner';
   const positionCacheKey = `promove-live-map:${isDemo ? 'demo' : (org?.id ?? 'clean')}`;
   const [vehicles, setVehicles] = useState<GpsPosition[]>(isDemo ? fleetPositions : []);

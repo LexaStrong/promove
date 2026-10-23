@@ -30,6 +30,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       },
     },
     {
+      url: new URL('/contact', siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+      alternates: {
+        languages: {
+          'en-GH': new URL('/contact', siteUrl).toString(),
+          en: new URL('/contact', siteUrl).toString(),
+        },
+      },
+    },
+    {
       url: new URL('/llms.txt', siteUrl).toString(),
       lastModified: now,
       changeFrequency: 'weekly',
