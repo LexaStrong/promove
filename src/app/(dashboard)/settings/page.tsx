@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Building2, Users, Shield, History, Plus,
   Save, CheckCircle2, UserCheck, Lock, Smartphone,
-  Info, Palette
+  Info, Palette, Headphones, Mail, Phone, MessageSquare, ExternalLink
 } from 'lucide-react';
+import { siteConfig } from '@/lib/site';
 import { mockOrg, mockUsers, mockAuditLogs } from '@/lib/mock-data';
 import { Role } from '@/lib/types';
 import { useAuth } from '@/lib/auth-context';
@@ -15,7 +16,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 export default function SettingsPage() {
   const { user, org } = useAuth();
   const { isDemo, orgName, setOrgName } = useFleet();
-  const [activeTab, setActiveTab] = useState<'org' | 'team' | 'appearance' | 'security' | 'audit'>('org');
+  const [activeTab, setActiveTab] = useState<'org' | 'team' | 'appearance' | 'security' | 'audit' | 'support'>('org');
 
   // Org form state
   const [orgForm, setOrgForm] = useState({
@@ -140,6 +141,13 @@ export default function SettingsPage() {
         >
           <History size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: '-2px' }} />
           Audit Log
+        </button>
+        <button
+          className={`pm-tab ${activeTab === 'support' ? 'active' : ''}`}
+          onClick={() => setActiveTab('support')}
+        >
+          <Headphones size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: '-2px' }} />
+          Support & Contact
         </button>
       </div>
 
@@ -594,6 +602,157 @@ export default function SettingsPage() {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Support & Contact */}
+      {activeTab === 'support' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--pm-space-6)' }}>
+          <div className="pm-card" style={{ padding: 'var(--pm-space-6)', borderLeft: '4px solid var(--pm-blue-600)' }}>
+            <h3 style={{ marginBottom: 'var(--pm-space-2)' }}>ProMove Ghana Dedicated Support Desk</h3>
+            <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.9375rem', lineHeight: 1.6, margin: 0 }}>
+              Need assistance with your fleet account, driver assignments, GPS telematics, or daily ledger reconciliation?
+              Our Accra-based operations team is available across official channels below.
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+            gap: 'var(--pm-space-6)',
+          }}>
+            {/* Tech Support */}
+            <div className="pm-card" style={{ padding: 'var(--pm-space-6)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--pm-radius-md)', background: 'var(--pm-blue-50)', color: 'var(--pm-blue-600)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Headphones size={20} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Technical Support</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>Software, sync & devices</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--pm-text-secondary)', marginBottom: 16 }}>
+                  Email our technical engineers for troubleshooting, bug reports, and data exports.
+                </p>
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--pm-blue-600)', marginBottom: 16 }}>
+                  {siteConfig.supportEmail}
+                </div>
+              </div>
+              <a
+                href={`mailto:${siteConfig.supportEmail}?subject=Support%20Request%20-%20Tenant%20${encodeURIComponent(orgForm.name)}`}
+                className="pm-btn pm-btn-secondary"
+                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+              >
+                <Mail size={16} /> Email Support Desk
+              </a>
+            </div>
+
+            {/* General Inquiries */}
+            <div className="pm-card" style={{ padding: 'var(--pm-space-6)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--pm-radius-md)', background: '#EDF5F8', color: '#1B7A9E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Mail size={20} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>General & Billing</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>Subscriptions & partnerships</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--pm-text-secondary)', marginBottom: 16 }}>
+                  Contact our operations desk for subscription invoices, commercial fleet expansion, and tenders.
+                </p>
+                <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: '#1B7A9E', marginBottom: 16 }}>
+                  {siteConfig.infoEmail}
+                </div>
+              </div>
+              <a
+                href={`mailto:${siteConfig.infoEmail}?subject=Inquiry%20-%20Tenant%20${encodeURIComponent(orgForm.name)}`}
+                className="pm-btn pm-btn-secondary"
+                style={{ width: '100%', justifyContent: 'center', gap: 8 }}
+              >
+                <MessageSquare size={16} /> Email Inquiries
+              </a>
+            </div>
+
+            {/* Direct Phone & WhatsApp */}
+            <div className="pm-card" style={{ padding: 'var(--pm-space-6)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderTop: '3px solid #25D366' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 'var(--pm-radius-md)', background: 'rgba(37, 211, 102, 0.12)', color: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Phone size={20} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>WhatsApp Hotline & Call</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--pm-text-muted)' }}>Fast chat & emergency dispatch</span>
+                  </div>
+                </div>
+                <p style={{ fontSize: '0.875rem', color: 'var(--pm-text-secondary)', marginBottom: 16 }}>
+                  Direct voice call and instant WhatsApp messaging with fleet technicians in Ghana.
+                </p>
+                <div style={{ fontWeight: 700, fontSize: '1.0625rem', color: 'var(--pm-text)', marginBottom: 16 }}>
+                  {siteConfig.phoneDisplay}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <a
+                  href={siteConfig.whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="pm-btn"
+                  style={{ flex: 1, justifyContent: 'center', background: '#25D366', color: '#FFFFFF', fontWeight: 600, border: 'none' }}
+                >
+                  WhatsApp
+                </a>
+                <a
+                  href={`tel:${siteConfig.phone}`}
+                  className="pm-btn pm-btn-secondary"
+                  style={{ justifyContent: 'center' }}
+                >
+                  Call
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Social Channels & Info */}
+          <div className="pm-card" style={{ padding: 'var(--pm-space-6)' }}>
+            <h4 style={{ marginBottom: 'var(--pm-space-3)' }}>Official Social Media Channels ({siteConfig.socials.handle})</h4>
+            <p style={{ color: 'var(--pm-text-secondary)', fontSize: '0.875rem', marginBottom: 'var(--pm-space-4)' }}>
+              Stay updated with transport industry news, DVLA regulatory notices, and software feature releases:
+            </p>
+            <div style={{ display: 'flex', gap: 'var(--pm-space-4)', flexWrap: 'wrap' }}>
+              <a
+                href={siteConfig.socials.instagram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pm-btn pm-btn-secondary pm-btn-sm"
+                style={{ gap: 6 }}
+              >
+                Instagram (@promovegh) <ExternalLink size={12} />
+              </a>
+              <a
+                href={siteConfig.socials.facebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pm-btn pm-btn-secondary pm-btn-sm"
+                style={{ gap: 6 }}
+              >
+                Facebook (@promovegh) <ExternalLink size={12} />
+              </a>
+              <a
+                href={siteConfig.socials.twitter}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pm-btn pm-btn-secondary pm-btn-sm"
+                style={{ gap: 6 }}
+              >
+                X / Twitter (@promovegh) <ExternalLink size={12} />
+              </a>
+            </div>
           </div>
         </div>
       )}

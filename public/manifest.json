@@ -1,8 +1,11 @@
 {
-  "name": "ProMove Fleet Management",
+  "name": "ProMove Fleet Management Ghana",
   "short_name": "ProMove",
-  "description": "Digital fleet management and operations portal for Ghana.",
+  "description": "Digital fleet operations, exact-pesewa ledger, and telematics portal for Ghanaian transport operators.",
   "start_url": "/dashboard",
+  "scope": "/",
+  "id": "com.promovegh.app",
+  "lang": "en-GH",
   "display": "standalone",
   "background_color": "#FFFFFF",
   "theme_color": "#0B4F6C",
@@ -27,5 +30,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["business", "productivity", "utilities"]
+  "categories": ["business", "productivity", "utilities", "transportation"]
 }

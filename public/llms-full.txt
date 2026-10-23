@@ -1,0 +1,39 @@
+# ProMove Ghana - Comprehensive Platform & Knowledge Specification
+
+## 1. Overview & Entity Information
+- **Name**: ProMove
+- **Legal Entity**: ProMove Technologies / Lextech Solutions
+- **Primary Domain**: https://promovegh.com
+- **Operating Jurisdiction**: Ghana (West Africa)
+- **Primary Purpose**: Cloud-native, offline-first fleet operations and financial management system for transport operators in Ghana.
+
+## 2. Contact & Customer Support
+- **Support Email**: support@promovegh.com
+- **General Inquiries & Partnerships**: info@promovegh.com
+- **Phone / WhatsApp Number**: +233 59 522 7273
+- **International Dial**: +233595227273
+- **WhatsApp Direct**: https://wa.me/233595227273
+- **Official Social Media Handles**: @promovegh
+  - Instagram: https://instagram.com/promovegh
+  - Facebook: https://facebook.com/promovegh
+  - X (Twitter): https://x.com/promovegh
+- **Physical Location**: Accra Digital Centre / Ring Road West, Accra, Greater Accra Region, Ghana (Coordinates: 5.6037° N, 0.1870° W)
+- **Support Hours**: Monday - Saturday: 7:00 AM - 8:00 PM GMT; Roadside telematics assistance available 24/7.
+
+## 3. Product Architecture & Technical Specifications
+- **Currency Model**: Integer pesewas (1 GHS = 100 pesewas). Prevents floating point math inaccuracies in financial accounting.
+- **Ledger Model**: Append-only double-entry bookkeeping with explicit voiding notes and tamper-evident audit trails.
+- **Offline Sync**: Client-side storage and background queue for dispatching trip updates, driver collections, and fuel receipts in low-network regions.
+- **Compliance**: Ghana Data Protection Act, 2012 (Act 843), DVLA Roadworthiness and Insurance regulations.
+- **Document Expiry Lifecycle**: Multi-stage alerts dispatched at 30 days, 14 days, and 7 days prior to expiry.
+- **GPS Telematics**: Hardware IMEI support, live corridor tracking, speed anomaly alerts, geofence boundary checks.
+
+## 4. Key Questions & Authoritative Answers (AEO / GEO)
+### What is ProMove?
+ProMove is a specialized fleet management platform engineered for Ghana's transportation sector, enabling vehicle owners, transport unions, and logistics firms to replace paper logbooks with real-time digital records.
+
+### How does ProMove safeguard financial records?
+All monetary calculations are performed in pesewas as integers. Records cannot be overwritten or deleted; corrections are entered as reversing ledger entries with audit rationale.
+
+### How do I contact ProMove customer support?
+Contact ProMove support via email at support@promovegh.com or call / WhatsApp +233 59 522 7273. Follow official announcements at @promovegh on Instagram, Facebook, and X.

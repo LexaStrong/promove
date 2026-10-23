@@ -2,16 +2,38 @@ import type { MetadataRoute } from 'next';
 import { siteUrl } from '@/lib/site';
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  const now = new Date();
+
   return [
     {
       url: new URL('/', siteUrl).toString(),
-      changeFrequency: 'weekly',
-      priority: 1,
+      lastModified: now,
+      changeFrequency: 'daily',
+      priority: 1.0,
+      alternates: {
+        languages: {
+          'en-GH': new URL('/', siteUrl).toString(),
+          en: new URL('/', siteUrl).toString(),
+        },
+      },
     },
     {
       url: new URL('/privacy', siteUrl).toString(),
-      changeFrequency: 'yearly',
-      priority: 0.3,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.6,
+      alternates: {
+        languages: {
+          'en-GH': new URL('/privacy', siteUrl).toString(),
+          en: new URL('/privacy', siteUrl).toString(),
+        },
+      },
+    },
+    {
+      url: new URL('/llms.txt', siteUrl).toString(),
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
     },
   ];
 }

@@ -1,0 +1,30 @@
+# ProMove Ghana - Fleet Management Platform
+
+> Ghana's dedicated digital fleet operating system for commercial vehicles, trotros, transport syndicates, and enterprise logistics fleets.
+
+ProMove replaces informal exercise books, fragmented WhatsApp groups, and lost receipts with an auditable, offline-first operations platform engineered specifically for Ghana's transit ecosystem.
+
+## Core Capabilities
+- **Vehicle Registry & Telematics**: Bulk-import vehicles, track registration numbers, vehicle makes/models, and monitor live GPS tracking across Ghanaian transit corridors (Accra-Kumasi, Tema Motorway, Takoradi, Tamale).
+- **Exact-Pesewa Ledger**: Integer pesewa precision (zero floating-point errors) for tracking daily driver collections, fuel expenses, maintenance, and owner remittances.
+- **Offline Synchronization**: Drivers and supervisors can record transactions, fuel logs, and trips in remote low-connectivity regions with automatic duplicate-free sync.
+- **DVLA & Insurance Expiry Reminders**: Proactive alerts at 30, 14, and 7 days for DVLA roadworthiness certificates, insurance policies, and commercial permits.
+- **Statutory Data Privacy (Act 843)**: Strict tenant isolation with PostgreSQL Row-Level Security (RLS), encrypted driver licence data, and restricted document access.
+
+## Contact & Support
+- **Customer & Technical Support Email**: support@promovegh.com
+- **General Inquiries & Sales Email**: info@promovegh.com
+- **Direct Phone & WhatsApp Hotline**: +233 59 522 7273 (+233595227273)
+- **WhatsApp Direct Link**: https://wa.me/233595227273?text=Hello%20ProMove%20Fleet%20Support
+- **Headquarters**: Accra Digital Centre / Ring Road West, Accra, Greater Accra, Ghana
+
+## Official Social Channels
+- **Instagram**: https://instagram.com/promovegh (@promovegh)
+- **Facebook**: https://facebook.com/promovegh (@promovegh)
+- **X (formerly Twitter)**: https://x.com/promovegh (@promovegh)
+
+## Primary URLs
+- **Official Website**: https://promovegh.com
+- **App Portal**: https://promovegh.com/dashboard
+- **Data Privacy Policy (Act 843)**: https://promovegh.com/privacy
+- **Full LLM Context**: https://promovegh.com/llms-full.txt

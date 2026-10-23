@@ -336,7 +336,7 @@ export default function PrivacyPage() {
             ProMove Cloud Platform | Lextech Systems Ltd | Accra, Ghana
           </div>
           <div>
-            Data Protection Officer contact: privacy@promove.gh | Tel: +233 (0) 30 200 0000
+            Data Protection & Support: <a href="mailto:support@promovegh.com" style={{ color: '#0B4F6C', fontWeight: 600 }}>support@promovegh.com</a> | Inquiries: <a href="mailto:info@promovegh.com" style={{ color: '#0B4F6C' }}>info@promovegh.com</a> | WhatsApp & Tel: <a href="https://wa.me/233595227273" style={{ color: '#0B4F6C', fontWeight: 600 }}>+233 59 522 7273</a> | Socials: @promovegh
           </div>
         </footer>
       </main>

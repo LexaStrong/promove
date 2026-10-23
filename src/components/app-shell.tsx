@@ -7,8 +7,9 @@ import {
   LayoutDashboard, Car, Users, BookOpen, Fuel,
   Wrench, FileText, AlertTriangle, Map, BarChart3,
   Settings, Bell, Menu, X, Search, LogOut, ChevronDown,
-  ShieldAlert, Smartphone, Navigation, Sparkles,
+  ShieldAlert, Smartphone, Navigation, Sparkles, Headphones,
 } from 'lucide-react';
+import { siteConfig } from '@/lib/site';
 import { useAuth } from '@/lib/auth-context';
 import { Role } from '@/lib/types';
 import { UserButton } from '@clerk/nextjs';
@@ -161,6 +162,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Settings size={18} />
             Settings
           </Link>
+          <a
+            href={siteConfig.whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pm-sidebar-link"
+            title="Chat with ProMove Ghana Support on WhatsApp (+233 59 522 7273)"
+            style={{ color: '#25D366' }}
+          >
+            <Headphones size={18} />
+            WhatsApp Support
+          </a>
           <div style={{ marginTop: 4 }}>
             <ThemeToggle variant="inline" />
           </div>
